@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+
+# Linting tools
+.ruff_cache/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Django (sqlite fallback)
+db.sqlite3
