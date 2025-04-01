@@ -1,7 +1,7 @@
 [project]
 name = "chat-project"
 version = "0.1.0"
-description = "Real-time chat using web sockets"
+description = "Real-time chat using web sockets test"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
