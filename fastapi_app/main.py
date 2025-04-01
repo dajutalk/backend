@@ -1,7 +1,8 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 app = FastAPI()
+connections = []
 
 html = """
 <!DOCTYPE html>
@@ -46,6 +47,12 @@ async def get():
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    while True:
-        data = await websocket.receive_text()
-        await websocket.send_text(f"Message text was: {data}")
+    connections.append(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            for conn in connections:
+                await conn.send_text(f"{data}")
+    except WebSocketDisconnect:
+        connections.remove(websocket)
+        # await websocket.send_text(f"Message text was: {data}")
