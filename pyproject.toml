@@ -1,11 +1,12 @@
 [project]
 name = "chat-project"
 version = "0.1.0"
-description = "Add your description here"
+description = "Real-time chat using web sockets"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "django==4.2.20",
+    "fastapi[standard]>=0.115.12",
     "mysqlclient>=2.2.7",
     "python-dotenv>=1.1.0",
 ]
