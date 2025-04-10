@@ -1,11 +1,11 @@
 import os
 from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import FileResponse
-
+from .api import stock
 
 app = FastAPI()
 connections = []
-
+app.include_router(stock.router, prefix="/api")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "templates", "index.html")
