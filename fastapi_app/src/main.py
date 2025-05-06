@@ -1,9 +1,22 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import FileResponse
+from .database.connection import engine, Base
 from .routes import stock
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 앱 시작 시
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+app = FastAPI(
+    lifespan=lifespan,
+)
+
+
 connections = []
 app.include_router(stock.router, prefix="/api")
 
