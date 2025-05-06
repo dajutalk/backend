@@ -1,37 +1,20 @@
-from pydantic import BaseModel, ConfigDict
-from beanie import Document
+# src/models/stock.py
+from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy.ext.declarative import declarative_base
 
+Base = declarative_base()
 
-class Stock(BaseModel):
-    ticker: str
-    companyName: str
-    sector:  str
-    isin:  str
-    marketCap:  str
-    priceNow: str
-    priceChangePercent: str
-    volume: str
-    per:str
-    dividendYield:str
-    chartData:list[dict]
+class Stock(Base):
+    __tablename__ = "stocks"
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "ticker": "AAPL",
-                "companyName": "Apple Inc.",
-                "sector": "Technology",
-                "isin": "US0378331005",
-                "marketCap": 2500000000000,
-                "priceNow": 150.00,
-                "priceChangePercent": 1.5,
-                "volume": 1000000,
-                "per": 28.5,
-                "dividendYield": 0.005,
-                "chartData": [
-                    {"date": "2023-01-01", "close": 145.00},
-                    {"date": "2023-01-02", "close": 146.00},
-                    # Add more data points as needed
-                ]
-            }
-        }
+    id = Column(Integer, primary_key=True, index=True)
+    ticker = Column(String(10), nullable=False)
+    companyName = Column(String(255))
+    sector = Column(String(100))
+    isin = Column(String(20))
+    marketCap = Column(Float)
+    priceNow = Column(Float)
+    priceChangePercent = Column(Float)
+    volume = Column(Integer)
+    per = Column(Float)
+    dividendYield = Column(Float)
