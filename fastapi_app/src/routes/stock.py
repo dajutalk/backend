@@ -1,6 +1,6 @@
 from fastapi import APIRouter
-from models.stock import Stock
-from database.connection import Database
+from ..models.stock import Stock
+from ..database.connection import Database
 import yfinance as yf
 
 router = APIRouter(

@@ -9,6 +9,7 @@ dependencies = [
     "django==4.2.20",
     "fastapi[standard]>=0.115.12",
     "mysqlclient>=2.2.7",
+    "pydantic-settings>=2.9.1",
     "python-dotenv>=1.1.0",
     "yfinance>=0.2.55",
 ]
