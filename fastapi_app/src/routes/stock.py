@@ -1,10 +1,16 @@
 from fastapi import APIRouter
+from models.stock import Stock
+from database.connection import Database
 import yfinance as yf
 
-router = APIRouter()
+router = APIRouter(
+    prefix="/stock",
+    tags=["Stock"],
+)
+event_db = Database(Stock)
 
-@router.get("/stock/{ticker}")
-def get_stock_data(ticker: str):
+@router.get("/{ticker}", response_model=Stock)
+async def get_stock_data(ticker: str):
     stock = yf.Ticker(ticker)
 
     info = stock.get_info()
