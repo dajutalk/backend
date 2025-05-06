@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import FileResponse
-from .api import stock
+from .routes import stock
 
 app = FastAPI()
 connections = []

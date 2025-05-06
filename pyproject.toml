@@ -5,6 +5,7 @@ description = "Real-time chat using web sockets test"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "beanie>=1.29.0",
     "django==4.2.20",
     "fastapi[standard]>=0.115.12",
     "mysqlclient>=2.2.7",
