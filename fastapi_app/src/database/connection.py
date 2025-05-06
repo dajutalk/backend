@@ -1,20 +1,13 @@
-from motor.motor_asyncio import AsyncIOMotorClient
-from beanie import init_beanie, Document
-from ..models.stock import Stock
+# src/database/connection.py
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 from ..config import settings
 
-async def initialize_database():
-    try:
-        client= AsyncIOMotorClient(settings.Database_URL)
-        await init_beanie(database=client.get_default_database(), document_models=[Stock])
-    except Exception as e:
-        print(f"Error initializing database: {e}")
-    
-class Database:
-    def __init__(self, model:Document) -> None:
-        self.model = model
+DATABASE_URL = settings.DATABASE_URL
 
-    async def get(self) -> list:
-        docs = await self.model.find_all().to_list()
-        return docs
-    
+engine = create_async_engine(DATABASE_URL, echo=True)
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
