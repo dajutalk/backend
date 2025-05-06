@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie, Document
 from ..models.stock import Stock
-from config import settings
+from ..config import settings
 
 async def initialize_database():
     try:
