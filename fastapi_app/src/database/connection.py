@@ -1,6 +1,6 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie, Document
-from models.events import Event, EventUpdate
+from src.models.stock import Event, EventUpdate
 from config import settings
 
 async def initialize_database():
