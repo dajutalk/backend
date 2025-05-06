@@ -1,4 +1,3 @@
-# src/api/stock.py
 from fastapi import APIRouter
 import yfinance as yf
 
