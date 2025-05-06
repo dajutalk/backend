@@ -1,8 +1,5 @@
-# src/models/stock.py
 from sqlalchemy import Column, Integer, String, Float
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from ..database.connection import Base
 
 class Stock(Base):
     __tablename__ = "stocks"
