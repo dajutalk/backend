@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+import time
+from yfinance.exceptions import YFRateLimitError
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..database.connection import get_db
 from ..models.stock import Stock
@@ -7,10 +9,21 @@ import yfinance as yf
 
 router = APIRouter(prefix="/stock", tags=["Stock"])
 
+
 @router.get("/{ticker}", response_model=StockSchema)
 async def get_stock_data(ticker: str, db: AsyncSession = Depends(get_db)):
     stock = yf.Ticker(ticker)
-    info = stock.get_info()
+    retries = 3
+    for attempt in range(retries):
+        try:
+            info = stock.get_info()
+            break
+        except YFRateLimitError:
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # Exponential backoff
+            else:
+                raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
+    
     chart = stock.history(period="1d", interval="1m").reset_index()
     chart_data = chart.tail(30)[["Datetime", "Close"]]
     chart_data = chart_data.rename(columns={"Datetime": "date", "Close": "close"}).to_dict(orient="records")
