@@ -14,5 +14,6 @@ class StockSchema(BaseModel):
     dividendYield: Optional[float]
     chartData: Optional[List[Dict]] = []
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
