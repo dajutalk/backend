@@ -6,7 +6,6 @@ class Stock(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     ticker = Column(String(10), nullable=False)
-    companyName = Column(String(255))
     sector = Column(String(100))
     isin = Column(String(20))
     marketCap = Column(Float)

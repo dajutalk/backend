@@ -17,20 +17,16 @@ async def get_stock_data(ticker: str, db: AsyncSession = Depends(get_db)):
     for attempt in range(retries):
         try:
             info = stock.get_info()
+            print(info)
             break
         except YFRateLimitError:
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)  # Exponential backoff
             else:
                 raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
-    
-    chart = stock.history(period="1d", interval="1m").reset_index()
-    chart_data = chart.tail(30)[["Datetime", "Close"]]
-    chart_data = chart_data.rename(columns={"Datetime": "date", "Close": "close"}).to_dict(orient="records")
-
+        
     return {
         "ticker": ticker,
-        "companyName": info.get("longName"),
         "sector": info.get("sector"),
         "isin": stock.get_isin(),
         "marketCap": info.get("marketCap"),
@@ -39,5 +35,5 @@ async def get_stock_data(ticker: str, db: AsyncSession = Depends(get_db)):
         "volume": info.get("volume"),
         "per": info.get("trailingPE"),
         "dividendYield": info.get("dividendYield"),
-        "chartData": chart_data
+        
     }
