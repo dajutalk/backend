@@ -1,11 +1,11 @@
 import os
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import FileResponse
 
 
 
 connections = []
+app =FastAPI()
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
