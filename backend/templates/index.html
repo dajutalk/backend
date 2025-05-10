@@ -12,8 +12,7 @@
         <ul id='messages'>
         </ul>
         <script>
-            const client_id = prompt("Enter your client ID:") || Math.floor(Math.random() * 10000);
-            var ws = new WebSocket(`ws://localhost:8000/ws/${client_id}`);
+            var ws = new WebSocket("ws://localhost:8000/ws");
             ws.onmessage = function(event) {
                 var messages = document.getElementById('messages')
                 var message = document.createElement('li')
