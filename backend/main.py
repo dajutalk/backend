@@ -1,8 +1,25 @@
 from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import FileResponse
+from backend.api import stock  # WebSocket 라우터
+from contextlib import asynccontextmanager
+import threading
+from backend.services.stock_service import run_ws  # 아래에서 만들 서비스
 
 
-app =FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ✅ 앱 시작 시
+    thread = threading.Thread(target=run_ws, daemon=True)
+    thread.start()
+
+    yield  # 앱이 실행되는 동안 유지됨
+
+    # ⛔ 앱 종료 시 정리 작업 필요하면 여기에 추가
+    # thread.join() 같은 건 일반적으로 안 넣어도 됩니다
+
+app = FastAPI(lifespan=lifespan)
+app.include_router(stock.router)
 
 class ConnectionManager:
     def __init__(self):
@@ -40,5 +57,9 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
         await manager.broadcast(f"Client  left the chat")
+
+@app.on_event("startup")
+def start_realtime_stock_stream():
+    threading.Thread(target=run_ws, daemon=True).start()
 
         
