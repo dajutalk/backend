@@ -12,6 +12,7 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             await asyncio.sleep(10)  # heartbeat 또는 ping 유지용
+            await websocket.send_text(json.dumps({"type": "ping"}))
     except WebSocketDisconnect:
         clients.remove(websocket)
 

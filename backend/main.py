@@ -4,7 +4,7 @@ from backend.api import stock  # WebSocket 라우터
 from contextlib import asynccontextmanager
 import threading
 from backend.services.stock_service import run_ws  # 아래에서 만들 서비스
-
+import asyncio
 
 
 @asynccontextmanager
@@ -48,18 +48,28 @@ async def get():
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+async def test_ws(websocket: WebSocket):
+    print("🟢 WebSocket 연결 시도됨")
+    await websocket.accept()
     try:
         while True:
-            data = await websocket.receive_text()
-            await manager.broadcast(f"Client  says: {data}")
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        await manager.broadcast(f"Client  left the chat")
+            await websocket.send_text("pong") 
+            await asyncio.sleep(3)
+    except Exception as e:
+        print("❌ WebSocket 에러:", e)
 
-@app.on_event("startup")
-def start_realtime_stock_stream():
-    threading.Thread(target=run_ws, daemon=True).start()
+
+# @app.websocket("/ws")
+# async def websocket_endpoint(websocket: WebSocket):
+#     await manager.connect(websocket)
+#     try:
+#         while True:
+#             data = await websocket.receive_text()
+#             await manager.broadcast(f"Client  says: {data}")
+#     except WebSocketDisconnect:
+#         manager.disconnect(websocket)
+#         await manager.broadcast(f"Client  left the chat")
+
+
 
         
