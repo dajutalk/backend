@@ -4,7 +4,7 @@ export default function StockPanel() {
   const [price, setPrice] = useState(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/ws");
+    const ws = new WebSocket("ws://localhost:8000/ws/stocks");
 
     ws.onopen = () => console.log("✅ WebSocket 연결 성공");
 
@@ -13,7 +13,8 @@ export default function StockPanel() {
       try {
         const data = JSON.parse(event.data);
         if (data.data && data.data[0]) {
-          setPrice(data.data[0].p);  // Finnhub 포맷
+          const btc = data.data.find(t => t.s === "BINANCE:BTCUSDT");
+          if (btc) setPrice(btc.p);
         }
       } catch (e) {
         // 👉 만약 그냥 문자열이면 여기에 예외처리됨
@@ -34,7 +35,7 @@ export default function StockPanel() {
 
   return (
     <div>
-      <h2>AAPL 실시간 가격</h2>
+      <h2>실시간 가격</h2>
       <p>{price ? `$${price}` : "⏳ 로딩 중..."}</p>
     </div>
   );
