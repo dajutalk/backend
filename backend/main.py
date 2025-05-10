@@ -5,18 +5,14 @@ from contextlib import asynccontextmanager
 import threading
 from backend.services.stock_service import run_ws  # 아래에서 만들 서비스
 import asyncio
-
+import json
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # ✅ 앱 시작 시
-    thread = threading.Thread(target=run_ws, daemon=True)
+    loop = asyncio.get_event_loop()
+    thread = threading.Thread(target=run_ws, args=(loop,), daemon=True)
     thread.start()
-
-    yield  # 앱이 실행되는 동안 유지됨
-
-    # ⛔ 앱 종료 시 정리 작업 필요하면 여기에 추가
-    # thread.join() 같은 건 일반적으로 안 넣어도 됩니다
+    yield
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(stock.router)
@@ -53,7 +49,7 @@ async def test_ws(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            await websocket.send_text("pong") 
+            await websocket.send_text(json.dumps({"data": [{"p": 123.45}] }))
             await asyncio.sleep(3)
     except Exception as e:
         print("❌ WebSocket 에러:", e)

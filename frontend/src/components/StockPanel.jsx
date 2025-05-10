@@ -7,19 +7,30 @@ export default function StockPanel() {
     const ws = new WebSocket("ws://localhost:8000/ws");
 
     ws.onopen = () => console.log("✅ WebSocket 연결 성공");
-    ws.onerror = (e) => console.error("❌ WebSocket 에러", e);
-    ws.onclose = () => console.warn("⚠️ WebSocket 연결 종료됨");
+
     ws.onmessage = (event) => {
       console.log("📩 수신된 메시지:", event.data);
-    };
-
-    return () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        console.log("🧹 WebSocket 연결 종료 시도");
-        ws.close();
+      try {
+        const data = JSON.parse(event.data);
+        if (data.data && data.data[0]) {
+          setPrice(data.data[0].p);  // Finnhub 포맷
+        }
+      } catch (e) {
+        // 👉 만약 그냥 문자열이면 여기에 예외처리됨
+        if (event.data === "pong") {
+          setPrice("💡 pong 수신됨");
+        }
       }
     };
-  }, []);
+
+    ws.onerror = (e) => console.error("❌ WebSocket 에러", e);
+    ws.onclose = () => console.warn("⚠️ WebSocket 연결 종료됨");
+
+    return () => {
+      console.log("🧹 WebSocket 연결 종료 시도");
+      ws.close();
+    };
+  }, [])
 
   return (
     <div>
