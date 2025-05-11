@@ -8,7 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
-.env
+**/.env
 
 # Linting tools
 .ruff_cache/

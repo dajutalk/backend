@@ -14,7 +14,7 @@ async def safe_remove_client(ws: WebSocket):
         clients.remove(ws)
 
 async def broadcast_stock_data(data: dict):
-    print("📡 브로드캐스트 시작:", data)  # 로그 추가
+    print("브로드캐스트 시작:", data)  # 로그 추가
     living = []
     for ws in clients:
         try:

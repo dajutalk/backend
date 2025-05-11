@@ -1,5 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from backend.utils.ws_manager import safe_add_client, safe_remove_client
+from backend.utils.ws_manager import safe_add_client,safe_remove_client
 import asyncio
 
 
@@ -8,7 +8,6 @@ router = APIRouter(
     tags=["WebSocket"],
     responses={404: {"description": "Not found"}},
 )
-
 
 
 @router.websocket("/stocks")

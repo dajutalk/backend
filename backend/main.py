@@ -17,42 +17,32 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(stock.router)
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
+# class ConnectionManager:
+#     def __init__(self):
+#         self.active_connections: list[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
+#     async def connect(self, websocket: WebSocket):
+#         await websocket.accept()
+#         self.active_connections.append(websocket)
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
+#     def disconnect(self, websocket: WebSocket):
+#         self.active_connections.remove(websocket)
 
 
-manager = ConnectionManager()
-
-TEMPLATE_PATH = "backend/templates/index.html"
-
-@app.get("/")
-async def get():
-    return FileResponse(TEMPLATE_PATH)
+#     async def broadcast(self, message: str):
+#         for connection in self.active_connections:
+#             await connection.send_text(message)
 
 
-@app.websocket("/ws")
-async def test_ws(websocket: WebSocket):
-    print("🟢 WebSocket 연결 시도됨")
-    await websocket.accept()
-    try:
-        while True:
-            await websocket.send_text(json.dumps({"data": [{"p": 123.45}] }))
-            await asyncio.sleep(3)
-    except Exception as e:
-        print("❌ WebSocket 에러:", e)
+# manager = ConnectionManager()
+
+# TEMPLATE_PATH = "backend/templates/index.html"
+
+# @app.get("/")
+# async def get():
+#     return FileResponse(TEMPLATE_PATH)
+
+
 
 
 # @app.websocket("/ws")
