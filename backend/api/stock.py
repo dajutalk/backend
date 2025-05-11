@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from backend.utils.ws_manager import safe_add_client,safe_remove_client
 import asyncio
-
+import json
 
 router = APIRouter(
     prefix="/ws",
@@ -16,7 +16,8 @@ async def websocket_endpoint(websocket: WebSocket):
     await safe_add_client(websocket)
     try:
         while True:
-            await asyncio.sleep(3600)
+            await asyncio.sleep(10)
+            await websocket.send_text(json.dumps({'type':'ping'}))
     except WebSocketDisconnect:
         await safe_remove_client(websocket)
  
