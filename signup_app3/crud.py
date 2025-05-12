@@ -8,11 +8,21 @@ from . import models, schemas
 # 비밀번호를 암호화하고 검증할 때 사용할 암호화 컨텍스트 설정
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
 # DB에서 email로 유저를 찾는 함수
+'''
+로그인, 회원가입 등에서 이 이메일로 이미 가입했는지 확인할 때 쓰는 용도
+email은 사용자 입력이기 때문에 인증 전 상태에서 주로 사용
+'''
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
 
+# DB에서 user_id로 유저를 찾는 함수
+'''
+이미 로그인된 사용자 식별 시 사용
+쿠키에 있는 JWT 토큰 안의 user ID를 기준으로 유저를 찾는 용도(sub 필드 -> user_id -> DB에서 유저 조회)
+'''
+def get_user(db: Session, user_id: int):
+    return db.query(models.User).filter(models.User.id == user_id).first()
 
 # 새로운 유저를 DB에 추가하는 함수
 def create_user(db: Session, user: schemas.UserCreate):
