@@ -18,5 +18,6 @@ dependencies = [
     "sqlalchemy>=2.0.40",
     "uvicorn>=0.34.0",
     "jinja2>=3.1.6",
-    "websockets>=15.0.1"
+    "websockets>=15.0.1",
+    "websocket>=0.2.1",
 ]

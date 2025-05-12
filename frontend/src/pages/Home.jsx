@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function Home() {
   const navigate = useNavigate();
-  const symbols = ["BINANCE:ETHUSDT", "BINANCE:BNBUSDT", "BINANCE:BTCUSDT","BINANCE:SOLUSDT","BINANCE:XRPUSDT"];
+  const symbols = ["BINANCE:ETHUSDT", "BINANCE:BNBUSDT", "BINANCE:BTCUSDT","BINANCE:SOLUSDT"];
 
 return (
     <div>
@@ -11,7 +11,8 @@ return (
       <button onClick={() => navigate('/stocks/BINANCE:BNBUSDT')}>바이낸스</button>
       <button onClick={() => navigate('/stocks/BINANCE:BTCUSDT')}>비트코인</button>
       <button onClick={() => navigate('/stocks/BINANCE:SOLUSDT')}>솔라나</button>
-      <button onClick={() => navigate('/stocks/BINANCE:XRPUSDT')}>리플</button>
+
+
     </div>
   );
 }
