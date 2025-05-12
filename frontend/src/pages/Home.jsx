@@ -4,14 +4,12 @@ export default function Home() {
   const navigate = useNavigate();
   const symbols = ["AAPL", "TSLA", "BINANCE:BTCUSDT"];
 
-  return (
+return (
     <div>
-      <h1>주식 선택</h1>
-      {symbols.map((sym) => (
-        <button key={sym} onClick={() => navigate(`/chart/${encodeURIComponent(sym)}`)}>
-          {sym}
-        </button>
-      ))}
+      <h1>종목 선택</h1>
+      <button onClick={() => navigate('/stock/AAPL')}>AAPL</button>
+      <button onClick={() => navigate('/stock/TSLA')}>TSLA</button>
+      <button onClick={() => navigate('/stock/BINANCE:BTCUSDT')}>BTCUSDT</button>
     </div>
   );
 }
