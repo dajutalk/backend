@@ -17,7 +17,8 @@ async def websocket_endpoint(websocket: WebSocket, symbol= Query(...)):
     await safe_add_client(websocket)
 
     loop = asyncio.get_event_loop()
-    threading.Thread(target=run_ws, args=(loop, symbol), daemon=True).start()
+    thread = threading.Thread(target=run_ws, args=(loop, symbol), daemon=True)
+    thread.start()
 
     try:
         while True:

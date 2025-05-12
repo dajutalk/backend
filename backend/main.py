@@ -1,20 +1,12 @@
 from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import FileResponse
 from backend.api import stock  # WebSocket 라우터
-from contextlib import asynccontextmanager
-import threading
-from backend.services.stock_service import run_ws  # 아래에서 만들 서비스
-import asyncio
-import json
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    loop = asyncio.get_event_loop()
-    thread = threading.Thread(target=run_ws, args=(loop,), daemon=True)
-    thread.start()
-    yield
 
-app = FastAPI(lifespan=lifespan)
+
+
+
+app = FastAPI()
 app.include_router(stock.router)
 
 # class ConnectionManager:

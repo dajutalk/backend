@@ -11,7 +11,7 @@ loop = asyncio.get_event_loop()
 
 
 
-def run_ws(loop):
+def run_ws(loop, symbol):
     def on_message(ws, message):
         try:
             data = json.loads(message)
@@ -20,7 +20,11 @@ def run_ws(loop):
             print("수신 처리 중 에러:", e)
 
     def on_open(ws):
-        ws.send('{"type":"subscribe","symbol":"BINANCE:BTCUSDT"}')
+        ws.send(json.dumps({
+            "type": "subscribe",
+            "symbol": symbol
+        }))
+        print(f" {symbol} 구독 시작")
 
     ws = websocket.WebSocketApp(
         f"wss://ws.finnhub.io?token={API_KEY}",
@@ -28,5 +32,4 @@ def run_ws(loop):
         on_open=on_open
     )
     ws.run_forever()
-
 

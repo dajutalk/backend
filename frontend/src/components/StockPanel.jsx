@@ -26,8 +26,6 @@ export default function StockPanel() {
         if (data.data && data.data[0]) {
           const item = data?.data?.find((t) => t.s === symbol);
           if (item){
-       
-            
             setVolume(item.v);
             setPriceHistory((prev) => [...prev, {time: new Date, price: btc.p}]);
             
@@ -48,7 +46,7 @@ export default function StockPanel() {
       console.log(" WebSocket 연결 종료 시도");
       ws.close();
     };
-  }, [])
+  }, [symbol]);
 
   return (
     <div>
