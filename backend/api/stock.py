@@ -11,9 +11,9 @@ router = APIRouter(
 
 
 @router.websocket("/stocks")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
-    await safe_add_client(websocket)
+    await safe_add_client(websocket, symbol)
     try:
         while True:
             await asyncio.sleep(10)
