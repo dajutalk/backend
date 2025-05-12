@@ -1,10 +1,12 @@
 # main.py 
 # FastAPI 엔트리포인트, API 라우팅
 
+from fastapi import Response
 from fastapi import FastAPI, Depends, HTTPException, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from . import models, schemas, crud, database, auth, kakao
+from . import models, schemas, crud, database, database, auth, kakao
+from .dependencies import get_current_user
 
 # 데이터베이스의 테이블 생성 (models.py의 모든 테이블을 실제 DB에 반영)
 models.Base.metadata.create_all(bind=database.engine)
@@ -23,10 +25,11 @@ def get_db():
 # [일반 로그인 or 자동 회원가입] API
 @app.post("/auth/login", response_model=schemas.Token)
 def login_or_signup(
+    response: Response,  # 기본값이 없는 인자는 앞에 위치해야 함
     email: str = Form(...),           # 사용자 이메일
     password: str = Form(...),         # 사용자 비밀번호
     nickname: str = Form(...),         # 사용자 닉네임
-    db: Session = Depends(get_db)      # DB 세션 의존성 주입
+    db: Session = Depends(get_db),      # DB 세션 의존성 주입
 ):
     # 입력한 이메일로 유저 검색
     user = crud.get_user_by_email(db, email)
@@ -48,6 +51,14 @@ def login_or_signup(
     # 로그인 성공 또는 회원가입 완료 시 토큰 발급
     token = auth.create_access_token(data={"sub": str(user.id)})
 
+    # JWT 토큰 발급 후, 쿠키로 설정하는 코드
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=False,     # 로컬에서는 반드시 False로 둬야 함, 배포 시에는 secure=True로 바꿔야 함
+        samesite="lax"
+    )
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -101,3 +112,8 @@ def kakao_login_callback(
     로그인 성공한 사용자를 받아줄 특정 URL 페이지를 프론트에서 만들 건데,
     아직 주소가 안 정해졌으니 http://localhost:3000/kakao/success 로 임시 저장하겠음
     '''
+
+# 쿠키에 access_token이 있고 유효하면 유저 정보를 반환하는 라우터
+@app.get("/auth/me", response_model=schemas.User)
+def read_me(current_user=Depends(get_current_user)):
+    return current_user    
