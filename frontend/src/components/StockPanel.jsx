@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
+import {  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid } from "recharts";
 
 export default function StockPanel() {
-  const [price, setPrice] = useState(null);
+
   const [symbol, setSymbol] = useState(null);
   const [volume, setVolume] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
  
   useEffect(() => {
     const ws = new WebSocket("ws://localhost:8000/ws/stocks");
@@ -18,14 +25,16 @@ export default function StockPanel() {
           const btc = data.data.find(t => t.s === "BINANCE:BTCUSDT");
           if (btc){
             setSymbol(btc.s);
-            setPrice(btc.p);
+            
             setVolume(btc.v);
+            setPriceHistory((prev) => [...prev, {time: new Date, price: btc.p}]);
+            
           }
         }
       } catch (e) {
         //  만약 그냥 문자열이면 여기에 예외처리됨
         if (event.data === "ping") {
-          setPrice( "ping 수신됨");
+          console.log("ping 수신됨");
         }
       }
     };
@@ -42,7 +51,13 @@ export default function StockPanel() {
   return (
     <div>
       <h2>{symbol ? `${symbol}`: "로딩 중"}</h2>
-      <p>{price ? `가격($): ${price}` : "로딩 중"}</p>
+      <LineChart width={600} height={300} data={priceHistory}>
+        <XAxis dataKey="time" />
+        <YAxis domain={['auto', 'auto']} />
+        <CartesianGrid stroke="#ccc" />
+        <Tooltip />
+        <Line type="monotone" dataKey="price" stroke="#8884d8" />
+      </LineChart>
       <p>{volume ? `거래량: ${volume}` : "로딩 중"}</p>
     </div>
   );
