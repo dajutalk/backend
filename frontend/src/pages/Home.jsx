@@ -7,9 +7,9 @@ export default function Home() {
 return (
     <div>
       <h1>종목 선택</h1>
-      <button onClick={() => navigate('/stock/AAPL')}>AAPL</button>
-      <button onClick={() => navigate('/stock/TSLA')}>TSLA</button>
-      <button onClick={() => navigate('/stock/BINANCE:BTCUSDT')}>BTCUSDT</button>
+      <button onClick={() => navigate('/stocks/AAPL')}>AAPL</button>
+      <button onClick={() => navigate('/stocks/TSLA')}>TSLA</button>
+      <button onClick={() => navigate('/stocks/BINANCE:BTCUSDT')}>BTCUSDT</button>
     </div>
   );
 }

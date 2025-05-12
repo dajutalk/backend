@@ -27,7 +27,7 @@ export default function StockPanel() {
           const item = data?.data?.find((t) => t.s === symbol);
           if (item){
             setVolume(item.v);
-            setPriceHistory((prev) => [...prev, {time: new Date, price: btc.p}]);
+            setPriceHistory((prev) => [...prev, {time: new Date, price: item.p}]);
             
           }
         }

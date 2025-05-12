@@ -11,14 +11,18 @@ router = APIRouter(
 )
 
 
+running_threads = {}
+
 @router.websocket("/stocks")
 async def websocket_endpoint(websocket: WebSocket, symbol= Query(...)):
     await websocket.accept()
-    await safe_add_client(websocket)
+    await safe_add_client(websocket, symbol)
 
-    loop = asyncio.get_event_loop()
-    thread = threading.Thread(target=run_ws, args=(loop, symbol), daemon=True)
-    thread.start()
+    if symbol not in running_threads:
+        loop = asyncio.get_event_loop()
+        thread = threading.Thread(target=run_ws, args=(loop, symbol), daemon=True)
+        thread.start()
+        running_threads[symbol] = thread
 
     try:
         while True:

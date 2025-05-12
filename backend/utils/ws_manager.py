@@ -5,7 +5,7 @@ import json
 clients=[]
 clients_lock =Lock()
 
-async def safe_add_client(ws: WebSocket):
+async def safe_add_client(ws: WebSocket, symbol: str):
     async with clients_lock:
         clients.append({"websocket": ws, "symbol": symbol})
 
