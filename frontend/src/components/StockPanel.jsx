@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import {  LineChart,
   Line,
   XAxis,
@@ -8,10 +9,11 @@ import {  LineChart,
 
 export default function StockPanel() {
 
-  const [symbol, setSymbol] = useState(null);
+  
+  const { symbol } = useParams(); 
   const [volume, setVolume] = useState(null);
   const [priceHistory, setPriceHistory] = useState([]);
- 
+
   useEffect(() => {
     const ws = new WebSocket(`ws://localhost:8000/ws/stocks?symbol=${encodeURIComponent(symbol)}`);
 
@@ -23,10 +25,10 @@ export default function StockPanel() {
         const data = JSON.parse(event.data);
         if (data.data && data.data[0]) {
           const item = data?.data?.find((t) => t.s === symbol);
-          if (btc){
-            setSymbol(btc.s);
+          if (item){
+       
             
-            setVolume(btc.v);
+            setVolume(item.v);
             setPriceHistory((prev) => [...prev, {time: new Date, price: btc.p}]);
             
           }
