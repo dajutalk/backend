@@ -1,17 +1,12 @@
-import { useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import StockChart from "../components/StockChart";
 
-export default function Home() {
-  const navigate = useNavigate();
-  const symbols = ["AAPL", "TSLA", "BINANCE:BTCUSDT"];
-
+export default function ChartPage() {
+  const { symbol } = useParams();  // AAPL, TSLA, etc
   return (
     <div>
-      <h1>주식 선택</h1>
-      {symbols.map((sym) => (
-        <button key={sym} onClick={() => navigate(`/chart/${encodeURIComponent(sym)}`)}>
-          {sym}
-        </button>
-      ))}
+      <h2>{symbol} 실시간 차트</h2>
+      <StockChart symbol={symbol} />
     </div>
   );
 }
