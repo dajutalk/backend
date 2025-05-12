@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import StockPanel from './components/StockPanel'
+import StockPage from './pages/StockPage'
 import Home from './pages/Home';
 
 function App() {
@@ -7,7 +7,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/stocks/:symbol" element={<StockPanel />} />
+        <Route path="/stocks/:symbol" element={<StockPage />} />
       </Routes>
     </Router>
   );

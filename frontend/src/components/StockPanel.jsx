@@ -53,7 +53,8 @@ export default function StockPanel() {
       <h2>{symbol ? `${symbol}`: "로딩 중"}</h2>
       <LineChart width={600} height={300} data={priceHistory}>
         <XAxis dataKey="time" />
-        <YAxis domain={['auto', 'auto']} />
+        <YAxis domain={['auto', 'auto']}
+        tickFormatter={(value) => `$${value.toLocaleString()}`} />
         <CartesianGrid stroke="#ccc" />
         <Tooltip />
         <Line type="monotone" dataKey="price" stroke="#8884d8" />
