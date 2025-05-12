@@ -13,7 +13,7 @@ export default function StockPanel() {
   const [priceHistory, setPriceHistory] = useState([]);
  
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/ws/stocks");
+    const ws = new WebSocket(`ws://localhost:8000/ws/stocks?symbol=${encodeURIComponent(symbol)}`);
 
     ws.onopen = () => console.log("WebSocket 연결 성공");
 
@@ -22,7 +22,7 @@ export default function StockPanel() {
       try {
         const data = JSON.parse(event.data);
         if (data.data && data.data[0]) {
-          const btc = data.data.find(t => t.s === "BINANCE:BTCUSDT");
+          const item = data?.data?.find((t) => t.s === symbol);
           if (btc){
             setSymbol(btc.s);
             
