@@ -5,9 +5,19 @@ description = "Real-time chat using web sockets test"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "django==4.2.20",
-    "fastapi[standard]>=0.115.12",
+    "aiomysql>=0.2.0",
+    "aiosqlite>=0.21.0",
+    "beanie>=1.29.0",
+    "cryptography>=44.0.3",
+    "databases>=0.9.0",
+    "fastapi>=0.115.12",
     "mysqlclient>=2.2.7",
+    "pydantic-settings>=2.9.1",
+    "pymysql>=1.1.1",
     "python-dotenv>=1.1.0",
-    "yfinance>=0.2.55",
+    "sqlalchemy>=2.0.40",
+    "uvicorn>=0.34.0",
+    "jinja2>=3.1.6",
+    "websockets>=15.0.1",
+    "websocket>=0.2.1",
 ]

@@ -30,3 +30,53 @@ cd Chat_Project
 # 주의사항
 **.env** 절대 커밋 금지
 **.env.example을 참고하여 .env를 직접 생성하세요**
+
+
+# 파일 구조
+
+project-root/
+├── backend/
+│   ├── api/
+│   │   ├── auth.py
+│   │   ├── chat.py
+│   │   └── stock.py
+│   │
+│   ├── core/
+│   │   ├── config.py
+│   │   └── security.py
+│   │
+│   ├── database/
+│   │   ├── models/
+│   │   │   └── user.py
+│   │   ├── crud.py
+│   │   └── session.py
+│   │
+│   ├── services/
+│   │   ├── auth_service.py
+│   │   ├── chat_service.py
+│   │   └── stock_service.py
+│   │
+│   ├── schemas/
+│   │   ├── user.py
+│   │   ├── stock.py
+│   │   └── chat.py
+│   │
+│   ├── static/              # (JS, CSS, 이미지) ← 템플릿 방식이면 사용
+│   ├── templates/           # (Jinja2 템플릿용)
+│   ├── main.py              # FastAPI 앱 진입점
+│   └── config.py
+│
+├── frontend/
+│   ├── public/              # 정적 자산
+│   ├── src/
+│   │   ├── components/      # 공통 컴포넌트 (ChatBox, StockPanel 등)
+│   │   ├── pages/           # 페이지 (Home, Login, Chat 등)
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   ├── .env
+│   ├── index.html
+│   └── package.json
+│
+├── .gitignore
+├── README.md
+└── pyproject.toml
