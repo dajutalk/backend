@@ -1,6 +1,6 @@
 from fastapi import FastAPI, WebSocket,WebSocketDisconnect
 from fastapi.responses import FileResponse
-from backend.api import stock, chat
+from stock.backend.api import stock, chat
 
 
 
