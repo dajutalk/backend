@@ -15,9 +15,19 @@ async def safe_remove_client(ws: WebSocket):
             client for client in clients if client["websocket"] != ws
         ]
 
+
+latest_prices = {}
+
+
 async def broadcast_stock_data(data: dict):
     print("브로드캐스트 시작:", data) 
     symbol = data["data"][0]["s"]
+    price = data["data"][0]["p"]
+    
+    if latest_prices.get(symbol) == price:
+        return 
+    latest_prices[symbol] =price
+
     async with clients_lock:
         for client in clients:
             if client["symbol"] == symbol:
