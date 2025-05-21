@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
 import {  LineChart,
   Line,
   XAxis,
@@ -10,7 +9,7 @@ import {  LineChart,
 export default function StockPanel() {
 
   
-  const { symbol } = useParams(); 
+
   const [volume, setVolume] = useState(null);
   const [priceHistory, setPriceHistory] = useState([]);
 
