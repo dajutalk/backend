@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function Home() {
   const navigate = useNavigate();
-  const symbols = ["BINANCE:ETHUSDT", "BINANCE:BNBUSDT", "BINANCE:BTCUSDT","BINANCE:SOLUSDT"];
+
 
 return (
     <div>
