@@ -1,20 +1,23 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
 router = APIRouter(
     prefix="/ws",
     tags=["Chat"],
 )
 
-chat_clients: list[WebSocket] = []
+chat_rooms: dict[str, list[WebSocket]] = {}
 
 @router.websocket("/chat")
-async def chat_endpoint(websocket: WebSocket):
+async def chat_endpoint(websocket: WebSocket, symbol: str = Query(...)):
     await websocket.accept()
-    chat_clients.append(websocket)
+    if symbol not in chat_rooms:
+        chat_rooms[symbol] = []
+
+    chat_rooms[symbol].append(websocket)
     try:
         while True:
             msg = await websocket.receive_text()
-            for client in chat_clients:
+            for client in chat_rooms[symbol]:
                 await client.send_text(msg)
     except WebSocketDisconnect:
-        chat_clients.remove(websocket)
+        chat_rooms[symbol].remove(websocket)
