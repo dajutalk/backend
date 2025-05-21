@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import {useParams} from "react-router-dom"
+
 
 export default function ChatPanel() {
-  const {symbol } = useParams();
+
   const [input, setInput] = useState("");
 
 
