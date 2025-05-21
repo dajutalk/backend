@@ -6,7 +6,7 @@ import {  LineChart,
   Tooltip,
   CartesianGrid } from "recharts";
 
-export default function StockPanel() {
+export default function StockPanel({symbol}) {
 
   
 

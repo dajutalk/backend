@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 
-export default function ChatPanel() {
+export default function ChatPanel({symbol}) {
 
   const [input, setInput] = useState("");
 
