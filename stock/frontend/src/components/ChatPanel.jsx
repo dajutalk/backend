@@ -1,27 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export default function ChatPanel() {
-  const [messages, setMessages] = useState([]);
+export default function ChatPanel({ symbol }) {
   const [input, setInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const wsRef = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:8000/ws/chat");
+    const ws = new WebSocket(`ws://localhost:8000/ws/chat?symbol=${symbol}`);
+    wsRef.current = ws;
 
     ws.onmessage = (event) => {
       setMessages((prev) => [...prev, event.data]);
     };
 
-    return () => ws.close();
-  }, []);
+    return () => {
+      ws.close();
+    };
+  }, [symbol]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const ws = new WebSocket("ws://localhost:8000/ws/chat");
-    ws.onopen = () => {
-      ws.send(input);
-      ws.close();
-    };
-    setInput("");
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(input);
+      setInput("");
+    }
   };
 
   return (
