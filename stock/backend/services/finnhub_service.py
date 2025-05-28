@@ -145,3 +145,64 @@ background_thread = threading.Thread(
     daemon=True
 )
 background_thread.start()
+
+async def get_stock_symbols(exchange: str, currency: str = "USD"):
+    """
+    Finnhub API를 통해 특정 거래소의 주식 심볼 목록을 가져오는 함수
+    
+    :param exchange: 거래소 코드 (예: US, KR)
+    :param currency: 통화 (기본값: USD)
+    :return: 주식 심볼 목록
+    """
+    try:
+        # 기본 URL 및 필수 파라미터
+        url = f"https://finnhub.io/api/v1/stock/symbol?exchange={exchange}&currency={currency}&token={API_KEY}"
+        
+        logger.info(f"주식 심볼 목록 요청: exchange={exchange}, currency={currency}")
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            logger.error(f"API 요청 실패: {response.status_code}, {response.text}")
+            return {"error": f"API 요청 실패: {response.status_code}"}
+    
+    except Exception as e:
+        logger.error(f"주식 심볼 목록 요청 중 오류: {e}")
+        return {"error": str(e)}
+
+async def get_crypto_symbols(exchange: str):
+    """
+    Finnhub API를 통해 특정 거래소의 암호화폐 심볼 목록을 가져오는 함수
+    
+    :param exchange: 암호화폐 거래소 이름 (예: binance, coinbase)
+    :return: 암호화폐 심볼 목록
+    """
+    try:
+        # 기본 URL 및 필수 파라미터
+        url = f"https://finnhub.io/api/v1/crypto/symbol?exchange={exchange}&token={API_KEY}"
+        
+        logger.info(f"암호화폐 심볼 목록 요청: exchange={exchange}")
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            # 응답 형식 조정
+            formatted_data = []
+            for item in data:
+                formatted_item = {
+                    "symbol": item.get("symbol", ""),
+                    "displaySymbol": item.get("displaySymbol", ""),
+                    "description": item.get("description", "")
+                }
+                formatted_data.append(formatted_item)
+            
+            return formatted_data
+        else:
+            logger.error(f"암호화폐 API 요청 실패: {response.status_code}, {response.text}")
+            return {"error": f"API 요청 실패: {response.status_code}"}
+    
+    except Exception as e:
+        logger.error(f"암호화폐 심볼 목록 요청 중 오류: {e}")
+        return {"error": str(e)}

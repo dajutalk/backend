@@ -4,7 +4,7 @@ import threading
 import asyncio
 import json
 from stock.backend.services.stock_service import run_ws
-from stock.backend.services.finnhub_service import get_stock_quote
+from stock.backend.services.finnhub_service import get_stock_quote, get_stock_symbols, get_crypto_symbols
 from typing import List, Optional
 
 router = APIRouter(
@@ -61,29 +61,39 @@ async def get_stock_quote_endpoint(symbol: str):
     else:
         raise HTTPException(status_code=404, detail=f"심볼 '{symbol}'의 데이터를 찾을 수 없습니다")
 
-@rest_router.get("/symbols")
-async def get_available_symbols():
+# 거래소 주식 목록 가져오기 엔드포인트 수정 - 파라미터 간소화 및 상위 30개만 반환
+@rest_router.get("/exchange/{exchange}")
+async def get_exchange_stocks(exchange: str):
     """
-    API를 통해 조회 가능한 샘플 주식 심볼 목록 반환
+    특정 거래소에서 거래되는 주식 목록 상위 30개를 반환하는 API
+    
+    :param exchange: 거래소 코드 (예: US)
+    :return: 주식 목록 상위 30개
     """
-    return {
-        "stocks": [
-            {"symbol": "AAPL", "name": "Apple Inc."},
-            {"symbol": "MSFT", "name": "Microsoft Corporation"},
-            {"symbol": "GOOGL", "name": "Alphabet Inc."},
-            {"symbol": "AMZN", "name": "Amazon.com, Inc."},
-            {"symbol": "TSLA", "name": "Tesla, Inc."},
-            {"symbol": "META", "name": "Meta Platforms, Inc."},
-            {"symbol": "NVDA", "name": "NVIDIA Corporation"},
-            {"symbol": "JPM", "name": "JPMorgan Chase & Co."},
-        ],
-        "crypto": [
-            {"symbol": "BINANCE:BTCUSDT", "name": "Bitcoin"},
-            {"symbol": "BINANCE:ETHUSDT", "name": "Ethereum"},
-            {"symbol": "BINANCE:BNBUSDT", "name": "Binance Coin"},
-            {"symbol": "BINANCE:SOLUSDT", "name": "Solana"},
-        ]
-    }
+    # 미국 주식만 지원하도록 currency는 USD로 고정
+    result = await get_stock_symbols(exchange, currency="USD")
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    # 상위 30개만 반환
+    return result[:30] if len(result) > 30 else result
+
+# 암호화폐 심볼 목록 가져오기 엔드포인트 추가
+@rest_router.get("/crypto/symbols/{exchange}")
+async def get_crypto_symbols_endpoint(exchange: str):
+    """
+    특정 거래소의 암호화폐 심볼 목록을 반환하는 API
+    
+    :param exchange: 암호화폐 거래소 이름 (예: binance, coinbase)
+    :return: 암호화폐 심볼 목록
+    """
+    result = await get_crypto_symbols(exchange)
+    
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
 
 
 
