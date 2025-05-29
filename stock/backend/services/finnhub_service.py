@@ -40,20 +40,16 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
     
     # 사용 가능한 캐시가 있는지 확인
     with request_lock:
-        # 기존 캐시 확인
-        if symbol in stock_cache:
-            cache_age = current_time - last_request_time.get(symbol, 0)
-            # 60초(1분) 이내의 데이터는 캐시 사용
+        # 캐시와 마지막 요청 시간 확인
+        if symbol in stock_cache and symbol in last_request_time:
+            cache_age = current_time - last_request_time[symbol]
+            
+            # 60초 이내 데이터는 캐시 사용
             if cache_age < 60:
                 logger.info(f"캐시된 데이터 반환: {symbol}, 경과 시간: {cache_age:.1f}초")
                 return stock_cache[symbol]
         
-        # 이 심볼에 대해 마지막 요청 후 최소 60초 지났는지 확인
-        if symbol in last_request_time and current_time - last_request_time[symbol] < 60:
-            logger.info(f"요청 제한으로 캐시된 데이터 반환: {symbol}")
-            return stock_cache.get(symbol)
-        
-        # API 요청
+        # 60초 이상 지났거나 캐시가 없는 경우 API 요청
         try:
             url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={API_KEY}"
             logger.info(f"Finnhub API 요청: {url}")
@@ -76,6 +72,7 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
                         't': int(time.time() * 1000) # 타임스탬프 (밀리초)
                     }
                     
+                    # 캐시 업데이트
                     stock_cache[symbol] = formatted_data
                     last_request_time[symbol] = current_time
                     
@@ -88,12 +85,12 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
         except Exception as e:
             logger.error(f"API 요청 중 오류 발생: {e}")
         
-        # 오류 시 기존 캐시가 있으면 반환
+        # 오류 시 기존 캐시 반환
         if symbol in stock_cache:
             logger.warning(f"API 요청 실패로 캐시 데이터 반환: {symbol}")
-            return stock_cache.get(symbol)
+            return stock_cache[symbol]
         
-        # 캐시도 없고 API 요청도 실패한 경우 직접 모의 데이터 반환 (임시 조치)
+        # 최후 수단: 모의 데이터
         logger.warning(f"모의 데이터 생성: {symbol}")
         mock_data = {
             's': symbol,
@@ -106,7 +103,6 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
             't': int(time.time() * 1000)
         }
         
-        # 모의 데이터도 캐싱
         stock_cache[symbol] = mock_data
         last_request_time[symbol] = current_time
         
