@@ -32,9 +32,16 @@ if __name__ == "__main__":
     # 명령줄 인자로 심볼을 받거나 기본값 사용
     symbol = sys.argv[1] if len(sys.argv) > 1 else "BINANCE:BTCUSDT"
     
-    # WebSocket URL 설정 (심볼 포함)
-    url = f"ws://localhost:8000/ws/stocks?symbol={symbol}"
-    print(f"연결 중: {url}")
+    # 심볼 타입에 따라 적절한 WebSocket URL 선택
+    if symbol.startswith("BINANCE:"):
+        # 암호화폐용 엔드포인트
+        crypto_symbol = symbol.split(":")[1].replace("USDT", "")
+        url = f"ws://localhost:8000/ws/crypto?symbol={crypto_symbol}"
+        print(f"암호화폐 연결 중: {url}")
+    else:
+        # 주식용 엔드포인트
+        url = f"ws://localhost:8000/ws/stocks?symbol={symbol}"
+        print(f"주식 연결 중: {url}")
     
     # 웹소켓 연결 설정
     ws = websocket.WebSocketApp(

@@ -363,6 +363,15 @@ def start_crypto_collection():
         logger.warning("암호화폐 수집이 이미 실행 중입니다")
         return
     
+    # 초기 데이터 수집
+    logger.info("🚀 암호화폐 초기 데이터 수집 시작")
+    for symbol in TOP_10_CRYPTOS:
+        if update_crypto_data(symbol):
+            logger.info(f"✅ {symbol} 초기 데이터 수집 완료")
+        else:
+            logger.error(f"❌ {symbol} 초기 데이터 수집 실패")
+        time.sleep(1.2)
+    
     crypto_thread_running = True
     crypto_thread = threading.Thread(target=crypto_periodic_update_worker, daemon=True)
     crypto_thread.start()
