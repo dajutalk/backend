@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # MySQL 데이터베이스 URL 설정
 DATABASE_URL = os.getenv(
     "STOCK_DATABASE_URL", 
-    "mysql+pymysql://stock_user:36367@localhost:3306/stock_db?charset=utf8mb4"
+    "mysql+pymysql://fbwoduf1:1111@localhost:3306/chat_db?charset=utf8mb4"
 )
 
 logger.info(f"데이터베이스 연결 URL: {DATABASE_URL}")
