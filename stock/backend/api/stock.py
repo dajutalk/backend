@@ -149,7 +149,7 @@ async def get_stored_symbols():
     symbols = quote_service.get_all_symbols()
     return {
         "total": len(symbols),
-        "symbols": symbols
+        "symbols": symbols 
     }
 
 @rest_router.get("/scheduler/status")
@@ -236,6 +236,76 @@ async def get_collector_symbols():
     return {
         "total": len(MOST_ACTIVE_STOCKS),
         "symbols": MOST_ACTIVE_STOCKS
+    }
+
+@rest_router.get("/crypto/{symbol}")
+async def get_crypto_quote(symbol: str):
+    """암호화폐 시세 조회 API"""
+    from stock.backend.services.stock_service import get_cached_crypto_data, TOP_10_CRYPTOS
+    
+    # 지원하는 암호화폐인지 확인
+    if symbol.upper() not in TOP_10_CRYPTOS:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"지원하지 않는 암호화폐입니다. 지원 목록: {', '.join(TOP_10_CRYPTOS)}"
+        )
+    
+    data = get_cached_crypto_data(symbol.upper())
+    
+    if data:
+        return {
+            "symbol": symbol.upper(),
+            "s": data.get('s'),              # BINANCE:BTCUSDT
+            "p": data.get('p'),              # 현재가 (문자열)
+            "v": data.get('v'),              # 거래량 (문자열)  
+            "t": data.get('t'),              # 타임스탬프 (밀리초)
+            "data_source": data.get('_data_source', 'unknown'),
+            "cache_age": data.get('_cache_age', 0)
+        }
+    else:
+        raise HTTPException(status_code=404, detail=f"암호화폐 '{symbol}' 데이터를 찾을 수 없습니다")
+
+@rest_router.get("/crypto/history/{symbol}")
+async def get_crypto_history(symbol: str, hours: int = Query(default=24, description="조회할 시간 범위 (시간 단위)")):
+    """암호화폐 시세 이력 조회"""
+    from stock.backend.services.crypto_service import crypto_service
+    
+    history = crypto_service.get_crypto_quote_history(symbol.upper(), hours)
+    return {
+        "symbol": symbol.upper(),
+        "hours": hours,
+        "count": len(history),
+        "data": [
+            {
+                "s": quote.s,
+                "p": quote.p,
+                "v": quote.v,
+                "t": quote.t,
+                "created_at": quote.created_at.isoformat()
+            } for quote in history
+        ]
+    }
+
+@rest_router.get("/crypto/statistics/{symbol}")
+async def get_crypto_statistics(symbol: str):
+    """특정 암호화폐의 통계 정보 조회"""
+    from stock.backend.services.crypto_service import crypto_service
+    
+    stats = crypto_service.get_crypto_quote_statistics(symbol.upper())
+    if not stats:
+        raise HTTPException(status_code=404, detail=f"암호화폐 '{symbol}' 데이터를 찾을 수 없습니다")
+    
+    return stats
+
+@rest_router.get("/crypto/symbols")
+async def get_stored_crypto_symbols():
+    """저장된 모든 암호화폐 심볼 목록 조회"""
+    from stock.backend.services.crypto_service import crypto_service
+    
+    symbols = crypto_service.get_all_crypto_symbols()
+    return {
+        "total": len(symbols),
+        "symbols": symbols
     }
 
 

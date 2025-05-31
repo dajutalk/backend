@@ -31,20 +31,31 @@ async def startup_event():
     create_db_and_tables()
     print("✅ 데이터베이스 초기화 완료")
     
-    # 잠시 대기 후 자동 수집기 시작 (서버가 완전히 시작된 후)
+    # 잠시 대기 후 자동 수집기들 시작
     import asyncio
     await asyncio.sleep(3)
+    
+    # 주식 자동 수집기 시작
     auto_collector.start_collector()
     print("🔄 주식 데이터 자동 수집기 시작")
+    
+    # 암호화폐 자동 수집기 시작
+    from stock.backend.services.stock_service import start_crypto_collection
+    start_crypto_collection()
+    print("₿ 암호화폐 데이터 자동 수집기 시작")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """애플리케이션 종료 시 실행"""
     print("🛑 Stock Backend API 종료...")
     
-    # 자동 수집기 중지
+    # 모든 자동 수집기 중지
     auto_collector.stop_collector()
     print("⏹️ 주식 데이터 자동 수집기 중지")
+    
+    from stock.backend.services.stock_service import stop_crypto_collection
+    stop_crypto_collection()
+    print("⏹️ 암호화폐 데이터 자동 수집기 중지")
 
 
 
