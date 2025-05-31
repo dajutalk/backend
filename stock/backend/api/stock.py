@@ -43,13 +43,12 @@ async def websocket_endpoint(websocket: WebSocket, symbol= Query(...)):
 
 # REST API 엔드포인트 - 주식 시세 정보 수정
 @rest_router.get("/quote")
-async def get_stock_quote_endpoint(symbol: str = Query(...)):
+async def get_stock_quote_endpoint(symbol: str = Query(...), save_to_db: bool = Query(default=True)):
     """
-    특정 주식 심볼의 실시간 시세 정보를 반환하는 REST API 엔드포인트
-    이 엔드포인트는 서버 측에서 주기적으로 업데이트된 데이터를 반환합니다.
+    주식 시세 조회 API - DB 저장 옵션 추가
     
-    :param symbol: 주식 심볼 (예: AAPL, MSFT)
-    :return: 주식 시세 정보 {c: 현재가, d: 변동폭, dp: 변동률(%), h: 고가, l: 저가, o: 시가, pc: 전일 종가}
+    :param symbol: 주식 심볼
+    :param save_to_db: DB 저장 여부 (기본값: True, 자동수집기에서는 False 사용)
     """
     if symbol.startswith("BINANCE:"):
         raise HTTPException(
@@ -59,6 +58,7 @@ async def get_stock_quote_endpoint(symbol: str = Query(...)):
     
     # stock_service에서 캐시된 데이터 조회
     from stock.backend.services.stock_service import get_cached_stock_data, register_symbol
+    from stock.backend.services.quote_service import quote_service
     import logging
     
     logger = logging.getLogger(__name__)
@@ -80,9 +80,8 @@ async def get_stock_quote_endpoint(symbol: str = Query(...)):
         else:
             final_source = 'cache'
         
-        logger.info(f"💾 응답 데이터 소스: {final_source}, 캐시 경과시간: {cache_age:.1f}초")
-        
         response_data = {
+            "symbol": symbol,
             "c": data.get('c', 0),       # 현재 가격
             "d": data.get('d', 0),       # 변동폭 
             "dp": data.get('dp', 0),     # 변동률(%)
@@ -96,53 +95,148 @@ async def get_stock_quote_endpoint(symbol: str = Query(...)):
             "cache_age": cache_age       # 캐시 경과 시간 (초)
         }
         
-        # 응답 로그
-        if final_source == 'cache':
-            logger.info(f"📋 캐시 데이터 응답: {symbol} (경과: {cache_age:.1f}초)")
-        else:
-            logger.info(f"🌐 API 데이터 응답: {symbol} (신규)")
-            
+        # 📊 조건부 DB 저장
+        if save_to_db and final_source == 'api':
+            saved = quote_service.save_stock_quote(response_data)
+            logger.info(f"💾 DB 저장: {symbol} {'성공' if saved else '실패'}")
+        
         return response_data
     else:
         logger.error(f"❌ 데이터 없음: {symbol}")
         raise HTTPException(status_code=404, detail=f"심볼 '{symbol}'의 데이터를 찾을 수 없습니다")
 
-# 주식 목록 가져오기 - 미국(US) 거래소만 지원하며 상위 30개만 반환
-@rest_router.get("/exchange")
-async def get_exchange_stocks():
-    """
-    미국(US) 거래소에서 거래되는 주식 목록 상위 30개를 반환하는 API
+# 📊 새로운 API 엔드포인트 추가
+@rest_router.get("/history/{symbol}")
+async def get_stock_history(symbol: str, hours: int = Query(default=24, description="조회할 시간 범위 (시간 단위)")):
+    """주식 시세 이력 조회"""
+    from stock.backend.services.quote_service import quote_service
     
-    :return: 미국 주식 심볼 목록 상위 60개
-    """
-    # 미국 주식으로 고정
-    exchange = "US"
-    result = await get_stock_symbols(exchange, currency="USD")
-    
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
-    
-    # 상위 60개만 반환하고 symbol 값만 추출
-    limited_result = result[:60] if len(result) > 60 else result
-    return [item.get("symbol") for item in limited_result if item.get("symbol")]
+    history = quote_service.get_quote_history(symbol, hours)
+    return {
+        "symbol": symbol,
+        "hours": hours,
+        "count": len(history),
+        "data": [
+            {
+                "c": quote.c,
+                "d": quote.d,
+                "dp": quote.dp,
+                "h": quote.h,
+                "l": quote.l,
+                "o": quote.o,
+                "pc": quote.pc,
+                "created_at": quote.created_at.isoformat()
+            } for quote in history
+        ]
+    }
 
-# 암호화폐 심볼 목록 가져오기 - 바이낸스만 지원
-@rest_router.get("/crypto/symbols")
-async def get_crypto_symbols_endpoint():
-    """
-    바이낸스 거래소의 암호화폐 심볼 목록을 반환하는 API
+@rest_router.get("/statistics/{symbol}")
+async def get_stock_statistics(symbol: str):
+    """특정 심볼의 통계 정보 조회"""
+    from stock.backend.services.quote_service import quote_service
     
-    :return: 바이낸스 암호화폐 심볼 목록
-    """
-    # 바이낸스로 고정
-    exchange = "binance"
-    result = await get_crypto_symbols(exchange)
+    stats = quote_service.get_quote_statistics(symbol)
+    if not stats:
+        raise HTTPException(status_code=404, detail=f"심볼 '{symbol}'의 데이터를 찾을 수 없습니다")
     
-    if "error" in result:
-        raise HTTPException(status_code=400, detail=result["error"])
+    return stats
+
+@rest_router.get("/symbols")
+async def get_stored_symbols():
+    """저장된 모든 심볼 목록 조회"""
+    from stock.backend.services.quote_service import quote_service
     
-    # 상위 30개만 반환
-    return result[:30] if len(result) > 30 else result
+    symbols = quote_service.get_all_symbols()
+    return {
+        "total": len(symbols),
+        "symbols": symbols
+    }
+
+@rest_router.get("/scheduler/status")
+async def get_scheduler_status():
+    """스케줄러 상태 조회"""
+    from stock.backend.services.scheduler_service import stock_scheduler
+    
+    status = stock_scheduler.get_status()
+    return {
+        "scheduler_status": status,
+        "message": "스케줄러가 실행 중입니다" if status["is_running"] else "스케줄러가 중지되었습니다"
+    }
+
+@rest_router.post("/scheduler/start")
+async def start_scheduler():
+    """스케줄러 수동 시작"""
+    from stock.backend.services.scheduler_service import stock_scheduler
+    
+    if stock_scheduler.is_running:
+        return {"message": "스케줄러가 이미 실행 중입니다"}
+    
+    stock_scheduler.start_scheduler()
+    return {"message": "스케줄러가 시작되었습니다"}
+
+@rest_router.post("/scheduler/stop")
+async def stop_scheduler():
+    """스케줄러 수동 중지"""
+    from stock.backend.services.scheduler_service import stock_scheduler
+    
+    if not stock_scheduler.is_running:
+        return {"message": "스케줄러가 이미 중지되었습니다"}
+    
+    stock_scheduler.stop_scheduler()
+    return {"message": "스케줄러가 중지되었습니다"}
+
+@rest_router.get("/scheduler/symbols")
+async def get_monitored_symbols():
+    """모니터링 중인 심볼 목록 조회"""
+    from stock.backend.services.scheduler_service import MOST_ACTIVE_STOCKS
+    
+    return {
+        "total": len(MOST_ACTIVE_STOCKS),
+        "symbols": MOST_ACTIVE_STOCKS
+    }
+
+@rest_router.get("/collector/status")
+async def get_collector_status():
+    """자동 수집기 상태 조회"""
+    from stock.backend.services.auto_collector import auto_collector
+    
+    status = auto_collector.get_status()
+    return {
+        "collector_status": status,
+        "message": "자동 수집기가 실행 중입니다" if status["is_running"] else "자동 수집기가 중지되었습니다"
+    }
+
+@rest_router.post("/collector/start")
+async def start_collector():
+    """자동 수집기 수동 시작"""
+    from stock.backend.services.auto_collector import auto_collector
+    
+    if auto_collector.is_running:
+        return {"message": "자동 수집기가 이미 실행 중입니다"}
+    
+    auto_collector.start_collector()
+    return {"message": "자동 수집기가 시작되었습니다"}
+
+@rest_router.post("/collector/stop")
+async def stop_collector():
+    """자동 수집기 수동 중지"""
+    from stock.backend.services.auto_collector import auto_collector
+    
+    if not auto_collector.is_running:
+        return {"message": "자동 수집기가 이미 중지되었습니다"}
+    
+    auto_collector.stop_collector()
+    return {"message": "자동 수집기가 중지되었습니다"}
+
+@rest_router.get("/collector/symbols")
+async def get_collector_symbols():
+    """자동 수집기 모니터링 심볼 목록 조회"""
+    from stock.backend.services.auto_collector import MOST_ACTIVE_STOCKS
+    
+    return {
+        "total": len(MOST_ACTIVE_STOCKS),
+        "symbols": MOST_ACTIVE_STOCKS
+    }
 
 
 
