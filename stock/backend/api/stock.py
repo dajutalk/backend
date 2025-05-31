@@ -3,10 +3,14 @@ from stock.backend.utils.ws_manager import safe_add_client, safe_remove_client
 import threading
 import asyncio
 import json
+import logging
 from stock.backend.services.stock_service import run_ws
 from stock.backend.services.finnhub_service import get_stock_quote, get_stock_symbols, get_crypto_symbols
 from typing import List, Optional
 import time
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/ws",
@@ -26,61 +30,97 @@ running_threads = {}
 @router.websocket("/stocks")
 async def websocket_endpoint(websocket: WebSocket, symbol: str = Query(...)):
     """
-    레거시 WebSocket 엔드포인트 - 새로운 시스템으로 리다이렉트
-    실제로는 /ws/stocks 또는 /ws/crypto 엔드포인트 사용을 권장
+    레거시 WebSocket 엔드포인트 - DB 기반으로 수정
     """
     await websocket.accept()
     
-    # 심볼 타입에 따라 적절한 처리
-    if symbol.startswith("BINANCE:"):
-        # 암호화폐인 경우
-        from stock.backend.services.stock_service import get_cached_crypto_data
-        crypto_symbol = symbol.split(":")[1].replace("USDT", "")
-        
-        try:
+    # DB 세션 가져오기
+    from stock.backend.database import get_db
+    db = next(get_db())
+    
+    try:
+        # 심볼 타입에 따라 적절한 처리
+        if symbol.startswith("BINANCE:"):
+            # 암호화폐인 경우 - DB에서 조회
+            from stock.backend.models import CryptoQuote
+            from sqlalchemy import desc
+            crypto_symbol = symbol.split(":")[1].replace("USDT", "")
+            
             while True:
-                crypto_data = get_cached_crypto_data(crypto_symbol)
-                if crypto_data:
-                    formatted_data = {
-                        "type": "crypto_update",
-                        "data": [{
-                            "s": crypto_data.get('s', ''),
-                            "p": crypto_data.get('p', '0'),
-                            "v": crypto_data.get('v', '0'),
-                            "t": crypto_data.get('t', 0)
-                        }]
-                    }
-                    await websocket.send_text(json.dumps(formatted_data))
-                    logger.info(f"레거시 암호화폐 데이터 전송: {symbol}")
-                
-                await asyncio.sleep(5)
-                
-        except WebSocketDisconnect:
-            logger.info(f"레거시 암호화폐 WebSocket 연결 해제: {symbol}")
-    else:
-        # 주식인 경우
-        from stock.backend.services.stock_service import get_cached_stock_data
-        
-        try:
+                try:
+                    # DB에서 최근 5개 레코드 조회
+                    recent_quotes = db.query(CryptoQuote)\
+                        .filter(CryptoQuote.symbol == crypto_symbol.upper())\
+                        .order_by(desc(CryptoQuote.created_at))\
+                        .limit(5)\
+                        .all()
+                    
+                    if recent_quotes:
+                        latest_quote = recent_quotes[0]
+                        formatted_data = {
+                            "type": "crypto_update",
+                            "data": [{
+                                "s": latest_quote.s,
+                                "p": latest_quote.p,
+                                "v": latest_quote.v,
+                                "t": latest_quote.t
+                            }],
+                            "data_source": "database"
+                        }
+                        await websocket.send_text(json.dumps(formatted_data))
+                    
+                    # 1초 간격
+                    await asyncio.sleep(1.0)
+                    
+                except WebSocketDisconnect:
+                    logger.info(f"레거시 암호화폐 WebSocket 연결 해제: {symbol}")
+                    break
+                except Exception as e:
+                    logger.error(f"암호화폐 WebSocket 오류: {e}")
+                    await asyncio.sleep(1.0)
+                    
+        else:
+            # 주식인 경우 - DB에서 조회
+            from stock.backend.models import StockQuote
+            from sqlalchemy import desc
+            
             while True:
-                stock_data = get_cached_stock_data(symbol)
-                if stock_data:
-                    formatted_data = {
-                        "type": "stock_update",
-                        "data": [{
-                            "s": symbol,
-                            "p": str(stock_data.get('c', 0)),
-                            "v": str(stock_data.get('v', 0)),
-                            "t": int(stock_data.get('t', 0))
-                        }]
-                    }
-                    await websocket.send_text(json.dumps(formatted_data))
-                    logger.info(f"레거시 주식 데이터 전송: {symbol}")
-                
-                await asyncio.sleep(10)
-                
-        except WebSocketDisconnect:
-            logger.info(f"레거시 주식 WebSocket 연결 해제: {symbol}")
+                try:
+                    # DB에서 최근 5개 레코드 조회
+                    recent_quotes = db.query(StockQuote)\
+                        .filter(StockQuote.symbol == symbol)\
+                        .order_by(desc(StockQuote.created_at))\
+                        .limit(5)\
+                        .all()
+                    
+                    if recent_quotes:
+                        latest_quote = recent_quotes[0]
+                        formatted_data = {
+                            "type": "stock_update",
+                            "data": [{
+                                "s": symbol,
+                                "p": str(latest_quote.c),
+                                "v": str(latest_quote.v) if latest_quote.v else "0",
+                                "t": int(latest_quote.created_at.timestamp() * 1000)
+                            }],
+                            "data_source": "database"
+                        }
+                        await websocket.send_text(json.dumps(formatted_data))
+                    
+                    # 2초 간격
+                    await asyncio.sleep(2.0)
+                    
+                except WebSocketDisconnect:
+                    logger.info(f"레거시 주식 WebSocket 연결 해제: {symbol}")
+                    break
+                except Exception as e:
+                    logger.error(f"주식 WebSocket 오류: {e}")
+                    await asyncio.sleep(2.0)
+                    
+    except Exception as e:
+        logger.error(f"WebSocket 연결 오류: {e}")
+    finally:
+        db.close()
 
 # REST API 엔드포인트 - 주식 시세 정보 수정
 @rest_router.get("/quote")
