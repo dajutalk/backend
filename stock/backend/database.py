@@ -1,96 +1,90 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from stock.backend.models import Base
 from dotenv import load_dotenv
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 import logging
 
-load_dotenv()
-
+# 로거 설정
 logger = logging.getLogger(__name__)
 
-# MySQL 데이터베이스 URL 설정
-DATABASE_URL = os.getenv(
-    "STOCK_DATABASE_URL", 
-    "mysql+pymysql://fbwoduf1:1111@localhost:3306/chat_db?charset=utf8mb4"
+# .env 파일 로드
+load_dotenv()
+
+# 환경변수 읽기
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "36367")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "3306")
+DB_NAME = os.getenv("DB_NAME", "stock_db")
+
+# MySQL 8.0 호환성을 위한 연결 URL - charset만 지정
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+
+# SQLAlchemy 엔진 설정 - connect_args 단순화
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,  # 연결 상태 확인
+    pool_recycle=3600,   # 1시간마다 연결 재생성
+    echo=False,          # SQL 쿼리 로그 (디버깅용)
+    connect_args={
+        "charset": "utf8mb4"
+    }
 )
 
-logger.info(f"데이터베이스 연결 URL: {DATABASE_URL}")
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+Base = declarative_base()
 
-# SQLAlchemy 엔진 생성
-try:
-    engine = create_engine(
-        DATABASE_URL,
-        echo=True,  # SQL 쿼리 로그 출력
-        pool_pre_ping=True,  # 연결 상태 확인
-        pool_recycle=3600,   # 1시간마다 연결 갱신
-    )
-    logger.info("✅ 데이터베이스 엔진 생성 완료")
-except Exception as e:
-    logger.error(f"❌ 데이터베이스 엔진 생성 실패: {e}")
-    raise
-
-# 세션 팩토리 생성
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
+# FastAPI에서 사용할 DB 세션 의존성 함수
 def get_db():
-    """데이터베이스 세션 생성"""
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
 
-def recreate_crypto_table():
-    """암호화폐 테이블 재생성 (타임스탬프 필드 타입 변경)"""
-    try:
-        with engine.connect() as connection:
-            # 기존 테이블 삭제
-            connection.execute("DROP TABLE IF EXISTS crypto_quotes")
-            logger.info("🗑️ 기존 crypto_quotes 테이블 삭제됨")
-            
-            # 새 테이블 생성
-            from stock.backend.models import CryptoQuote
-            CryptoQuote.__table__.create(bind=engine)
-            logger.info("✅ crypto_quotes 테이블 재생성 완료 (BIGINT 타임스탬프)")
-            
-            return True
-    except Exception as e:
-        logger.error(f"❌ crypto_quotes 테이블 재생성 실패: {e}")
-        return False
-
 def create_db_and_tables():
-    """데이터베이스 테이블 생성"""
+    """데이터베이스와 테이블 생성 함수"""
     try:
-        # 연결 테스트
-        with engine.connect() as connection:
-            logger.info("✅ 데이터베이스 연결 테스트 성공")
+        # 먼저 데이터베이스가 존재하는지 확인
+        base_url = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}?charset=utf8mb4"
+        temp_engine = create_engine(base_url, connect_args={"charset": "utf8mb4"})
         
-        # 테이블 생성
+        with temp_engine.begin() as connection:  # autocommit을 위해 begin() 사용
+            # 데이터베이스 생성 (존재하지 않는 경우)
+            connection.execute(text(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}"))
+            logger.info(f"✅ 데이터베이스 '{DB_NAME}' 확인/생성 완료")
+        
+        temp_engine.dispose()
+        
+        # 모델들을 import해서 테이블 정의를 로드
+        try:
+            from stock.backend.models import StockQuote, CryptoQuote
+            logger.info("✅ 모델 import 성공")
+        except ImportError as e:
+            logger.warning(f"⚠️ 모델 import 실패: {e}")
+        
+        # 모든 테이블 생성
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ 데이터베이스 테이블 생성 완료")
-        
-        # 암호화폐 테이블 재생성 (타입 변경을 위해)
-        recreate_crypto_table()
+        logger.info("✅ 모든 테이블 생성 완료")
         
         return True
+        
     except Exception as e:
-        logger.error(f"❌ 데이터베이스 테이블 생성 실패: {e}")
-        logger.error("💡 다음 명령어로 MySQL 사용자와 데이터베이스를 생성하세요:")
-        logger.error("   mysql -u root -p")
-        logger.error("   CREATE DATABASE stock_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
-        logger.error("   CREATE USER 'stock_user'@'localhost' IDENTIFIED BY '36367';")
-        logger.error("   GRANT ALL PRIVILEGES ON stock_db.* TO 'stock_user'@'localhost';")
-        logger.error("   FLUSH PRIVILEGES;")
+        logger.error(f"❌ 데이터베이스/테이블 생성 실패: {e}")
+        import traceback
+        logger.error(f"❌ 상세 오류:\n{traceback.format_exc()}")
         return False
 
 def test_connection():
     """데이터베이스 연결 테스트"""
     try:
         with engine.connect() as connection:
-            result = connection.execute("SELECT 1")
+            result = connection.execute(text("SELECT 1"))
             logger.info("✅ 데이터베이스 연결 테스트 성공")
             return True
     except Exception as e:
         logger.error(f"❌ 데이터베이스 연결 실패: {e}")
+        import traceback
+        logger.error(f"❌ 상세 오류:\n{traceback.format_exc()}")
         return False
