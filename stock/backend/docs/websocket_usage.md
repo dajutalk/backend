@@ -6,40 +6,77 @@
 ## 웹소켓 연결 방법
 
 ### 기본 URL
+
+**주식용:**
 ```
-ws://[서버주소]/ws/stocks
+ws://[서버주소]/ws/stocks?symbol={symbol}
+```
+
+**암호화폐용:**
+```
+ws://[서버주소]/ws/crypto?symbol={symbol}
+```
+
+**통합 시장 데이터용:**
+```
+ws://[서버주소]/ws/main
 ```
 
 로컬 개발 환경에서는 다음과 같이 연결합니다:
 ```
-ws://localhost:8000/ws/stocks
+ws://localhost:8000/ws/stocks?symbol=AAPL
+ws://localhost:8000/ws/crypto?symbol=BTC
+ws://localhost:8000/ws/main
 ```
 
 ### 연결 파라미터
 웹소켓 연결 시 다음 쿼리 파라미터를 사용할 수 있습니다:
 
+**주식 (`/ws/stocks`)**:
 - `symbol`: 조회할 주식 심볼 (필수)
-  - 예: BINANCE:BTCUSDT, NASDAQ:AAPL, KRX:005930(삼성전자)
-  - 기본값: BINANCE:BTCUSDT
+  - 예: AAPL, MSFT, GOOGL
+  - 기본값: 없음 (필수 파라미터)
+
+**암호화폐 (`/ws/crypto`)**:
+- `symbol`: 조회할 암호화폐 심볼 (필수)
+  - 예: BTC, ETH, DOGE
+  - 기본값: 없음 (필수 파라미터)
 
 예시:
 ```
-ws://localhost:8000/ws/stocks?symbol=BINANCE:BTCUSDT
+ws://localhost:8000/ws/stocks?symbol=AAPL
+ws://localhost:8000/ws/crypto?symbol=BTC
 ```
 
 ## 수신 데이터 형식
 
 웹소켓으로 수신되는 데이터는 다음과 같은 JSON 형식입니다:
 
+**주식 데이터:**
 ```json
 {
   "type": "stock_update",
   "data": [
     {
-      "s": "BINANCE:BTCUSDT",  // 심볼
-      "p": "50000.25",         // 가격
-      "v": "0.1234",           // 거래량
-      "t": 1632145789000       // 타임스탬프
+      "s": "AAPL",           // 심볼
+      "p": "150.25",         // 가격
+      "v": "1000000",        // 거래량
+      "t": 1632145789000     // 타임스탬프
+    }
+  ]
+}
+```
+
+**암호화폐 데이터:**
+```json
+{
+  "type": "crypto_update",
+  "data": [
+    {
+      "s": "BINANCE:BTCUSDT", // 전체 심볼
+      "p": "50000.25",        // 가격
+      "v": "0.1234",          // 거래량
+      "t": 1632145789000      // 타임스탬프
     }
   ]
 }
@@ -47,8 +84,8 @@ ws://localhost:8000/ws/stocks?symbol=BINANCE:BTCUSDT
 
 ### 데이터 필드 설명
 - `s`: 주식/암호화폐 심볼
-- `p`: 현재 가격
-- `v`: 거래량
+- `p`: 현재 가격 (문자열)
+- `v`: 거래량 (문자열)
 - `t`: 타임스탬프 (밀리초 단위)
 
 ## 프론트엔드 사용 예시
@@ -56,42 +93,57 @@ ws://localhost:8000/ws/stocks?symbol=BINANCE:BTCUSDT
 ### JavaScript 예시 코드
 
 ```javascript
-// 웹소켓 연결 생성
-const symbol = "BINANCE:BTCUSDT";
-const socket = new WebSocket(`ws://localhost:8000/ws/stocks?symbol=${symbol}`);
-
-// 연결 이벤트
-socket.onopen = (event) => {
-  console.log("웹소켓 연결 성공!");
-};
-
-// 메시지 수신 이벤트
-socket.onmessage = (event) => {
-  try {
-    const data = JSON.parse(event.data);
-    if (data.data && data.data.length > 0) {
-      data.data.forEach(item => {
-        console.log(`심볼: ${item.s}, 가격: ${item.p}, 거래량: ${item.v}`);
-        // 여기에 UI 업데이트 로직 추가
-      });
+// 주식용 웹소켓 연결
+function connectToStock(symbol) {
+  const socket = new WebSocket(`ws://localhost:8000/ws/stocks?symbol=${symbol}`);
+  
+  socket.onopen = (event) => {
+    console.log(`주식 웹소켓 연결 성공: ${symbol}`);
+  };
+  
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'stock_update' && data.data.length > 0) {
+        const stockData = data.data[0];
+        console.log(`${stockData.s}: $${stockData.p}`);
+        // UI 업데이트 로직
+      }
+    } catch (error) {
+      console.error("메시지 처리 중 오류:", error);
     }
-  } catch (error) {
-    console.error("메시지 처리 중 오류:", error);
-  }
-};
+  };
+  
+  return socket;
+}
 
-// 오류 이벤트
-socket.onerror = (error) => {
-  console.error("웹소켓 오류:", error);
-};
+// 암호화폐용 웹소켓 연결
+function connectToCrypto(symbol) {
+  const socket = new WebSocket(`ws://localhost:8000/ws/crypto?symbol=${symbol}`);
+  
+  socket.onopen = (event) => {
+    console.log(`암호화폐 웹소켓 연결 성공: ${symbol}`);
+  };
+  
+  socket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if (data.type === 'crypto_update' && data.data.length > 0) {
+        const cryptoData = data.data[0];
+        console.log(`${cryptoData.s}: $${cryptoData.p}`);
+        // UI 업데이트 로직
+      }
+    } catch (error) {
+      console.error("메시지 처리 중 오류:", error);
+    }
+  };
+  
+  return socket;
+}
 
-// 연결 종료 이벤트
-socket.onclose = (event) => {
-  console.log(`연결 종료: ${event.code} - ${event.reason}`);
-};
-
-// 연결 종료
-// 필요할 때 실행: socket.close();
+// 사용 예시
+const appleSocket = connectToStock('AAPL');
+const bitcoinSocket = connectToCrypto('BTC');
 ```
 
 ### React Hooks 사용 예시
@@ -99,24 +151,30 @@ socket.onclose = (event) => {
 ```jsx
 import { useState, useEffect } from 'react';
 
-function StockPriceComponent({ symbol = "BINANCE:BTCUSDT" }) {
-  const [stockData, setStockData] = useState(null);
+function MarketDataComponent({ symbol, type = 'stock' }) {
+  const [marketData, setMarketData] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // 웹소켓 연결 생성
-    const socket = new WebSocket(`ws://localhost:8000/ws/stocks?symbol=${symbol}`);
+    // 타입에 따라 적절한 웹소켓 URL 생성
+    const wsUrl = type === 'crypto' 
+      ? `ws://localhost:8000/ws/crypto?symbol=${symbol}`
+      : `ws://localhost:8000/ws/stocks?symbol=${symbol}`;
+      
+    const socket = new WebSocket(wsUrl);
 
     socket.onopen = () => {
       setIsConnected(true);
-      console.log("웹소켓 연결됨");
+      console.log(`${type} 웹소켓 연결됨: ${symbol}`);
     };
 
     socket.onmessage = (event) => {
       try {
         const response = JSON.parse(event.data);
-        if (response.data && response.data.length > 0) {
-          setStockData(response.data[0]);
+        const expectedType = type === 'crypto' ? 'crypto_update' : 'stock_update';
+        
+        if (response.type === expectedType && response.data.length > 0) {
+          setMarketData(response.data[0]);
         }
       } catch (error) {
         console.error("데이터 파싱 오류:", error);
@@ -125,71 +183,81 @@ function StockPriceComponent({ symbol = "BINANCE:BTCUSDT" }) {
 
     socket.onclose = () => {
       setIsConnected(false);
-      console.log("웹소켓 연결 종료");
+      console.log(`${type} 웹소켓 연결 종료: ${symbol}`);
     };
 
-    // 컴포넌트 언마운트 시 연결 종료
     return () => {
       if (socket) {
         socket.close();
       }
     };
-  }, [symbol]);
+  }, [symbol, type]);
 
   return (
     <div>
-      <h2>실시간 주식 가격</h2>
+      <h2>{type === 'crypto' ? '암호화폐' : '주식'} 실시간 가격</h2>
       <p>연결 상태: {isConnected ? '연결됨' : '연결되지 않음'}</p>
       <p>심볼: {symbol}</p>
-      {stockData && (
+      {marketData && (
         <div>
-          <p>가격: {stockData.p}</p>
-          <p>거래량: {stockData.v}</p>
-          <p>업데이트 시간: {new Date(stockData.t).toLocaleString()}</p>
+          <p>가격: ${marketData.p}</p>
+          <p>거래량: {marketData.v}</p>
+          <p>업데이트 시간: {new Date(marketData.t).toLocaleString()}</p>
         </div>
       )}
     </div>
   );
 }
 
-export default StockPriceComponent;
+export default MarketDataComponent;
 ```
 
-## 여러 심볼 구독하기
+## 엔드포인트별 특징
 
-여러 심볼을 동시에 구독하려면 쉼표(,)로 구분하여 전달합니다:
+### `/ws/stocks` - 주식 전용
+- 업데이트 주기: 10초
+- 지원 심볼: AAPL, MSFT, GOOGL 등 미국 주식
+- 데이터 소스: Finnhub API (캐시 사용)
 
-```
-ws://localhost:8000/ws/stocks?symbol=BINANCE:BTCUSDT,NASDAQ:AAPL,KRX:005930
-```
+### `/ws/crypto` - 암호화폐 전용  
+- 업데이트 주기: 5초
+- 지원 심볼: BTC, ETH, DOGE 등 상위 10개 암호화폐
+- 데이터 소스: Binance (Finnhub API 경유)
+
+### `/ws/main` - 통합 시장 데이터
+- 업데이트 주기: 10초 
+- 모든 시장 데이터 통합 제공
+- 클라이언트별 개별 요청 가능
 
 ## 자주 발생하는 문제와 해결 방법
 
-### 연결이 자주 끊기는 경우
-자동 재연결 로직을 구현하는 것이 좋습니다:
+### 1. 연결은 되지만 데이터가 오지 않는 경우
 
+**원인**: 백그라운드 데이터 수집기가 아직 시작되지 않았을 수 있습니다.
+
+**해결방법**: 
 ```javascript
-function createWebSocket(symbol) {
-  const socket = new WebSocket(`ws://localhost:8000/ws/stocks?symbol=${symbol}`);
-  
-  socket.onclose = () => {
-    console.log("연결이 끊어졌습니다. 3초 후 재연결을 시도합니다.");
-    setTimeout(() => createWebSocket(symbol), 3000);
-  };
-  
-  // 다른 이벤트 핸들러 설정...
-  
-  return socket;
-}
-
-const ws = createWebSocket("BINANCE:BTCUSDT");
+// 연결 후 약간의 지연을 두고 확인
+socket.onopen = () => {
+  setTimeout(() => {
+    if (!receivedData) {
+      console.log("데이터 수신 대기 중...");
+    }
+  }, 15000); // 15초 후 확인
+};
 ```
 
-### 데이터가 수신되지 않는 경우
-1. 심볼이 올바르게 지정되었는지 확인하세요.
-2. 서버가 실행 중인지 확인하세요.
-3. 네트워크 연결을 확인하세요.
+### 2. 특정 심볼의 데이터만 오지 않는 경우
+
+**원인**: 해당 심볼이 지원 목록에 없거나 API 제한에 걸렸을 수 있습니다.
+
+**해결방법**: 서버 로그 확인 및 지원 심볼 목록 조회
+```bash
+curl http://localhost:8000/api/stocks/symbols
+curl http://localhost:8000/api/stocks/crypto/symbols
+```
 
 ## 참고 사항
-- 웹소켓은 양방향 통신을 지원하지만, 현재 구현에서는 서버에서 클라이언트로의 단방향 데이터 스트리밍만 지원합니다.
-- 데이터는 실시간으로 업데이트되며, 시장 상황에 따라 업데이트 빈도가 달라질 수 있습니다.
+- 모든 가격 데이터는 문자열로 전송되므로 필요시 숫자로 변환하세요
+- 암호화폐 데이터는 실시간성이 높아 업데이트가 더 빈번합니다
+- 서버 재시작 시 모든 WebSocket 연결이 끊어지므로 자동 재연결 로직을 구현하세요

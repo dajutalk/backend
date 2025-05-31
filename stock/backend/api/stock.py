@@ -24,22 +24,63 @@ rest_router = APIRouter(
 running_threads = {}
 
 @router.websocket("/stocks")
-async def websocket_endpoint(websocket: WebSocket, symbol= Query(...)):
+async def websocket_endpoint(websocket: WebSocket, symbol: str = Query(...)):
+    """
+    레거시 WebSocket 엔드포인트 - 새로운 시스템으로 리다이렉트
+    실제로는 /ws/stocks 또는 /ws/crypto 엔드포인트 사용을 권장
+    """
     await websocket.accept()
-    await safe_add_client(websocket, symbol)
-
-    if symbol not in running_threads:
-        loop = asyncio.get_event_loop()
-        thread = threading.Thread(target=run_ws, args=(loop, symbol), daemon=True)
-        thread.start()
-        running_threads[symbol] = thread
-
-    try:
-        while True:
-            await asyncio.sleep(10)
-            await websocket.send_text(json.dumps({'type':'ping'}))
-    except WebSocketDisconnect:
-        await safe_remove_client(websocket)
+    
+    # 심볼 타입에 따라 적절한 처리
+    if symbol.startswith("BINANCE:"):
+        # 암호화폐인 경우
+        from stock.backend.services.stock_service import get_cached_crypto_data
+        crypto_symbol = symbol.split(":")[1].replace("USDT", "")
+        
+        try:
+            while True:
+                crypto_data = get_cached_crypto_data(crypto_symbol)
+                if crypto_data:
+                    formatted_data = {
+                        "type": "crypto_update",
+                        "data": [{
+                            "s": crypto_data.get('s', ''),
+                            "p": crypto_data.get('p', '0'),
+                            "v": crypto_data.get('v', '0'),
+                            "t": crypto_data.get('t', 0)
+                        }]
+                    }
+                    await websocket.send_text(json.dumps(formatted_data))
+                    logger.info(f"레거시 암호화폐 데이터 전송: {symbol}")
+                
+                await asyncio.sleep(5)
+                
+        except WebSocketDisconnect:
+            logger.info(f"레거시 암호화폐 WebSocket 연결 해제: {symbol}")
+    else:
+        # 주식인 경우
+        from stock.backend.services.stock_service import get_cached_stock_data
+        
+        try:
+            while True:
+                stock_data = get_cached_stock_data(symbol)
+                if stock_data:
+                    formatted_data = {
+                        "type": "stock_update",
+                        "data": [{
+                            "s": symbol,
+                            "p": str(stock_data.get('c', 0)),
+                            "v": str(stock_data.get('v', 0)),
+                            "t": int(stock_data.get('t', 0))
+                        }]
+                    }
+                    await websocket.send_text(json.dumps(formatted_data))
+                    logger.info(f"레거시 주식 데이터 전송: {symbol}")
+                
+                await asyncio.sleep(10)
+                
+        except WebSocketDisconnect:
+            logger.info(f"레거시 주식 WebSocket 연결 해제: {symbol}")
 
 # REST API 엔드포인트 - 주식 시세 정보 수정
 @rest_router.get("/quote")
