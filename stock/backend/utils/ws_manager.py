@@ -2,8 +2,6 @@ from asyncio import Lock
 from fastapi import WebSocket
 import json
 import logging
-from stock.backend.services.finnhub_service import get_stock_data_for_broadcast
-from stock.backend.services.db_service import db_service
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -29,10 +27,6 @@ async def broadcast_stock_data(data: dict):
     try:
         symbol = data["data"][0]["s"]
         logger.info(f"브로드캐스트: {symbol}")
-        
-        # 📊 실시간 데이터를 데이터베이스에 저장
-        for item in data["data"]:
-            db_service.save_stock_price(item)
         
         async with clients_lock:
             for client in clients:

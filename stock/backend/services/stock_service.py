@@ -5,7 +5,6 @@ import threading
 import time
 import requests
 from stock.backend.utils.ws_manager import broadcast_stock_data
-from stock.backend.services.db_service import db_service
 import os
 from dotenv import load_dotenv
 import logging
@@ -51,14 +50,12 @@ update_thread = None
 thread_running = False
 
 def update_stock_data(symbol):
-    """주식 데이터를 업데이트하고 캐시 및 데이터베이스에 저장"""
-    start_time = time.time()
+    """주식 데이터를 업데이트하고 캐시에 저장"""
     try:
         url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={API_KEY}"
         logger.info(f"주식 업데이트 요청: {symbol}")
         
         response = requests.get(url, timeout=5)
-        response_time = time.time() - start_time
         
         if response.status_code == 200:
             data = response.json()
@@ -71,24 +68,10 @@ def update_stock_data(symbol):
                     'source': 'api'
                 }
                 data['_cache_age'] = 0
-                data['data_source'] = 'api'
-                data['cache_age'] = 0
-                
-                # 변동률 계산
-                if 'c' in data and 'pc' in data:
-                    current_price = data['c']
-                    prev_close = data['pc']
-                    data['d'] = current_price - prev_close
-                    data['dp'] = ((current_price - prev_close) / prev_close) * 100 if prev_close != 0 else 0
                 
                 with cache_lock:
                     stock_cache[symbol] = data
                     last_update_time[symbol] = current_time
-                
-                # 📊 데이터베이스에 저장
-                db_service.save_stock_quote(data, symbol)
-                db_service.update_cache_info(symbol, is_api_call=True, response_time=response_time)
-                
                 logger.info(f"주식 데이터 업데이트 완료: {symbol} (API 호출)")
                 return True
             else:
@@ -99,8 +82,6 @@ def update_stock_data(symbol):
         return False
     except Exception as e:
         logger.error(f"업데이트 중 오류: {e}")
-        # 📊 오류 정보 저장
-        db_service.update_cache_info(symbol, is_api_call=True, response_time=time.time() - start_time)
         return False
 
 def periodic_update_worker():
@@ -166,10 +147,6 @@ def get_cached_stock_data(symbol):
             cache_age = current_time - cached_at
             cached_data['_cache_age'] = cache_age
             cached_data['_data_source'] = 'cache'  # 명시적으로 캐시에서 가져옴을 표시
-            
-            # 📊 캐시 히트 기록
-            db_service.update_cache_info(symbol, is_api_call=False)
-            
             logger.info(f"📋 캐시에서 데이터 반환: {symbol} (캐시 경과: {cache_age:.1f}초)")
             return cached_data
     
