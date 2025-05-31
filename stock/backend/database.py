@@ -41,6 +41,24 @@ def get_db():
     finally:
         db.close()
 
+def recreate_crypto_table():
+    """암호화폐 테이블 재생성 (타임스탬프 필드 타입 변경)"""
+    try:
+        with engine.connect() as connection:
+            # 기존 테이블 삭제
+            connection.execute("DROP TABLE IF EXISTS crypto_quotes")
+            logger.info("🗑️ 기존 crypto_quotes 테이블 삭제됨")
+            
+            # 새 테이블 생성
+            from stock.backend.models import CryptoQuote
+            CryptoQuote.__table__.create(bind=engine)
+            logger.info("✅ crypto_quotes 테이블 재생성 완료 (BIGINT 타임스탬프)")
+            
+            return True
+    except Exception as e:
+        logger.error(f"❌ crypto_quotes 테이블 재생성 실패: {e}")
+        return False
+
 def create_db_and_tables():
     """데이터베이스 테이블 생성"""
     try:
@@ -51,6 +69,10 @@ def create_db_and_tables():
         # 테이블 생성
         Base.metadata.create_all(bind=engine)
         logger.info("✅ 데이터베이스 테이블 생성 완료")
+        
+        # 암호화폐 테이블 재생성 (타입 변경을 위해)
+        recreate_crypto_table()
+        
         return True
     except Exception as e:
         logger.error(f"❌ 데이터베이스 테이블 생성 실패: {e}")
