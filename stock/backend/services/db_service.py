@@ -1,11 +1,10 @@
 from sqlmodel import Session, select
 from stock.backend.database import get_db_session, engine
-from stock.backend.models import StockQuote, StockPrice, StockCache, StockSymbol, User
+from stock.backend.models import StockQuote, StockPrice, StockCache, StockSymbol
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 import logging
 import time
-import bcrypt
 
 logger = logging.getLogger(__name__)
 
@@ -111,103 +110,6 @@ class StockDatabaseService:
                 
         except Exception as e:
             logger.error(f"❌ 캐시 정보 업데이트 실패: {symbol}, 오류: {e}")
-    
-    def create_user(self, email: Optional[str], password: Optional[str], nickname: str, provider: str) -> Optional[User]:
-        """새 사용자 생성"""
-        try:
-            with Session(engine) as session:
-                # 비밀번호 해싱 (일반 로그인인 경우)
-                hashed_password = None
-                if password and provider == "local":
-                    salt = bcrypt.gensalt()
-                    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-                
-                # 사용자 객체 생성
-                user = User(
-                    email=email,
-                    password=hashed_password,
-                    nickname=nickname,
-                    provider=provider,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
-                )
-                
-                session.add(user)
-                session.commit()
-                session.refresh(user)
-                
-                logger.info(f"✅ 새 사용자 생성: {email} ({provider})")
-                return user
-                
-        except Exception as e:
-            logger.error(f"❌ 사용자 생성 실패: {email}, 오류: {e}")
-            return None
-    
-    def get_user_by_email(self, email: str) -> Optional[User]:
-        """이메일로 사용자 조회"""
-        try:
-            with Session(engine) as session:
-                user = session.exec(
-                    select(User).where(User.email == email).where(User.is_active == True)
-                ).first()
-                return user
-                
-        except Exception as e:
-            logger.error(f"❌ 사용자 조회 실패: {email}, 오류: {e}")
-            return None
-    
-    def verify_password(self, plain_password: str, hashed_password: str) -> bool:
-        """비밀번호 검증"""
-        try:
-            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-        except Exception as e:
-            logger.error(f"❌ 비밀번호 검증 실패: {e}")
-            return False
-    
-    def get_latest_quote(self, symbol: str) -> Optional[StockQuote]:
-        """최신 주식 시세 조회"""
-        try:
-            with Session(engine) as session:
-                quote = session.exec(
-                    select(StockQuote)
-                    .where(StockQuote.symbol == symbol)
-                    .order_by(StockQuote.timestamp.desc())
-                ).first()
-                return quote
-                
-        except Exception as e:
-            logger.error(f"❌ 최신 시세 조회 실패: {symbol}, 오류: {e}")
-            return None
-    
-    def get_price_history(self, symbol: str, hours: int = 24) -> List[StockQuote]:
-        """주식 시세 이력 조회"""
-        try:
-            with Session(engine) as session:
-                since = datetime.utcnow() - timedelta(hours=hours)
-                quotes = session.exec(
-                    select(StockQuote)
-                    .where(StockQuote.symbol == symbol)
-                    .where(StockQuote.timestamp >= since)
-                    .order_by(StockQuote.timestamp.desc())
-                ).all()
-                return list(quotes)
-                
-        except Exception as e:
-            logger.error(f"❌ 시세 이력 조회 실패: {symbol}, 오류: {e}")
-            return []
-    
-    def get_cache_statistics(self) -> List[StockCache]:
-        """캐시 통계 조회"""
-        try:
-            with Session(engine) as session:
-                cache_stats = session.exec(
-                    select(StockCache).order_by(StockCache.last_update.desc())
-                ).all()
-                return list(cache_stats)
-                
-        except Exception as e:
-            logger.error(f"❌ 캐시 통계 조회 실패: {e}")
-            return []
 
 # 전역 데이터베이스 서비스 인스턴스
 db_service = StockDatabaseService()
