@@ -38,6 +38,8 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
         ]
         stocks_data = []
         
+        logger.info(f"🔍 주식 데이터 조회 시작 - {len(stock_symbols)}개 심볼")
+        
         for symbol in stock_symbols:
             try:
                 # DB에서 해당 심볼의 최근 30개 레코드 조회
@@ -46,6 +48,8 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                     .order_by(desc(StockQuote.created_at))\
                     .limit(30)\
                     .all()
+                
+                logger.info(f"📊 {symbol}: {len(recent_quotes)}개 레코드 발견")  # debug -> info로 변경
                 
                 if recent_quotes:
                     # 시간순으로 정렬 (오래된 것부터)
@@ -56,27 +60,44 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                     for i, quote in enumerate(recent_quotes):
                         history_data.append({
                             "time": i + 1,  # 1부터 30까지의 인덱스
-                            "price": float(quote.c),
-                            "volume": float(quote.v) if quote.v else 0
+                            "price": float(quote.c)
+                            # volume 필드 제거
                         })
                     
+                    # 변동폭과 변동률 계산
+                    current_price = float(recent_quotes[-1].c)
+                    change = float(recent_quotes[-1].d) if recent_quotes[-1].d else 0
+                    change_percent = float(recent_quotes[-1].dp) if recent_quotes[-1].dp else 0
+                    
                     # 프론트엔드가 기대하는 형식으로 데이터 구성
-                    stocks_data.append({
+                    stock_item = {
                         "symbol": symbol,
-                        "price": float(recent_quotes[-1].c),  # 현재가
-                        "change": 0,  # 변동폭 (계산 필요하면 추가)
-                        "changePercent": 0,  # 변동률 (계산 필요하면 추가)
-                        "volume": float(recent_quotes[-1].v) if recent_quotes[-1].v else 0,
+                        "price": current_price,
+                        "change": change,
+                        "changePercent": change_percent,
+                        # volume 필드 제거
                         "history": history_data,
                         "timestamp": int(recent_quotes[-1].created_at.timestamp() * 1000),
                         "data_source": "database"
-                    })
+                    }
+                    
+                    stocks_data.append(stock_item)
+                    logger.info(f"✅ {symbol} 데이터 추가: ${current_price} ({change:+.2f}, {change_percent:+.2f}%)")
+                else:
+                    logger.info(f"⚠️ {symbol}: DB에 데이터 없음")
+                    
             except Exception as e:
                 logger.error(f"❌ 주식 {symbol} 조회 오류: {e}")
+                import traceback
+                logger.error(f"❌ {symbol} 상세 오류: {traceback.format_exc()}")
                 continue
+        
+        logger.info(f"📈 주식 데이터 수집 완료: {len(stocks_data)}개")
         
         # 암호화폐 데이터 수집 (DB에서 최근 30개)
         cryptos_data = []
+        logger.info(f"🔍 암호화폐 데이터 조회 시작 - {len(TOP_10_CRYPTOS)}개 심볼")
+        
         for symbol in TOP_10_CRYPTOS:
             try:
                 recent_crypto_quotes = db.query(CryptoQuote)\
@@ -84,6 +105,8 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                     .order_by(desc(CryptoQuote.created_at))\
                     .limit(30)\
                     .all()
+                
+                logger.debug(f"💰 {symbol}: {len(recent_crypto_quotes)}개 레코드 발견")
                 
                 if recent_crypto_quotes:
                     recent_crypto_quotes.reverse()
@@ -93,24 +116,32 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                     for i, quote in enumerate(recent_crypto_quotes):
                         history_data.append({
                             "time": i + 1,  # 1부터 30까지의 인덱스
-                            "price": float(quote.p),
-                            "volume": float(quote.v) if quote.v else 0
+                            "price": float(quote.p)
+                            # volume 필드 제거
                         })
                     
                     # 프론트엔드가 기대하는 형식으로 데이터 구성
-                    cryptos_data.append({
+                    crypto_item = {
                         "symbol": symbol,
-                        "price": float(recent_crypto_quotes[-1].p),  # 현재가
-                        "change": 0,  # 변동폭
-                        "changePercent": 0,  # 변동률
-                        "volume": float(recent_crypto_quotes[-1].v) if recent_crypto_quotes[-1].v else 0,
+                        "price": float(recent_crypto_quotes[-1].p),
+                        "change": 0,  # 암호화폐는 변동폭 데이터가 별도로 없음
+                        "changePercent": 0,  # 변동률 계산 필요시 추가
+                        # volume 필드 제거
                         "history": history_data,
                         "timestamp": int(recent_crypto_quotes[-1].created_at.timestamp() * 1000),
                         "data_source": "database"
-                    })
+                    }
+
+                    cryptos_data.append(crypto_item)
+                    logger.debug(f"✅ {symbol} 데이터 추가: ${float(recent_crypto_quotes[-1].p)}")
+                else:
+                    logger.debug(f"⚠️ {symbol}: DB에 데이터 없음")
+                    
             except Exception as e:
                 logger.error(f"❌ 암호화폐 {symbol} 조회 오류: {e}")
                 continue
+        
+        logger.info(f"💰 암호화폐 데이터 수집 완료: {len(cryptos_data)}개")
         
         # 프론트엔드가 기대하는 형식으로 데이터 전송
         market_data = {
@@ -125,10 +156,12 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
         }
         
         await manager.send_personal_message(market_data, websocket)
-        logger.info(f"DB market data sent - {len(stocks_data)} stocks with history, {len(cryptos_data)} cryptos with history")
+        logger.info(f"✅ DB market data sent - {len(stocks_data)} stocks with history, {len(cryptos_data)} cryptos with history")
         
     except Exception as e:
         logger.error(f"❌ DB에서 데이터 조회 오류: {e}")
+        import traceback
+        logger.error(f"❌ 상세 스택 트레이스:\n{traceback.format_exc()}")
         await send_cached_market_data(websocket)
 
 async def send_cached_market_data(websocket: WebSocket):
@@ -157,8 +190,8 @@ async def send_cached_market_data(websocket: WebSocket):
                     variation = current_price * 0.001 * (i - 15)  # ±1.5% 변동
                     history_data.append({
                         "time": i + 1,
-                        "price": current_price + variation,
-                        "volume": stock_data.get('v', 0)
+                        "price": current_price + variation
+                        # volume 필드 제거
                     })
                 
                 stocks_data.append({
@@ -166,7 +199,7 @@ async def send_cached_market_data(websocket: WebSocket):
                     "price": current_price,
                     "change": stock_data.get('d', 0),
                     "changePercent": stock_data.get('dp', 0),
-                    "volume": stock_data.get('v', 0),
+                    # volume 필드 제거
                     "history": history_data,
                     "timestamp": int(time.time() * 1000),
                     "data_source": "cache"
@@ -185,8 +218,8 @@ async def send_cached_market_data(websocket: WebSocket):
                     variation = current_price * 0.001 * (i - 15)  # ±1.5% 변동
                     history_data.append({
                         "time": i + 1,
-                        "price": current_price + variation,
-                        "volume": float(crypto_data.get('v', 0))
+                        "price": current_price + variation
+                        # volume 필드 제거
                     })
                 
                 cryptos_data.append({
@@ -194,7 +227,7 @@ async def send_cached_market_data(websocket: WebSocket):
                     "price": current_price,
                     "change": 0,
                     "changePercent": 0,
-                    "volume": float(crypto_data.get('v', 0)),
+                    # volume 필드 제거
                     "history": history_data,
                     "timestamp": int(time.time() * 1000),
                     "data_source": "cache"
@@ -351,7 +384,7 @@ async def websocket_stocks_endpoint(websocket: WebSocket, symbol: str = Query(..
                     stock_history.append({
                         "time": quote.created_at.strftime("%H:%M:%S"),
                         "price": float(quote.c),
-                        "volume": float(quote.v) if quote.v else 0,
+                        # volume 필드 제거
                         "timestamp": int(quote.created_at.timestamp() * 1000)
                     })
                 
@@ -416,7 +449,7 @@ async def websocket_crypto_endpoint(websocket: WebSocket, symbol: str = Query(..
                     crypto_history.append({
                         "time": quote.created_at.strftime("%H:%M:%S"),
                         "price": float(quote.p),
-                        "volume": float(quote.v) if quote.v else 0,
+                        # volume 필드 제거
                         "timestamp": int(quote.created_at.timestamp() * 1000)
                     })
                 
