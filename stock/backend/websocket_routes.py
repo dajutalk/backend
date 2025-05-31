@@ -33,7 +33,13 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         from stock.backend.services.stock_service import get_cached_stock_data, get_cached_crypto_data, TOP_10_CRYPTOS
         
         # 주요 주식 데이터 수집
-        stock_symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "NFLX", "CRM", "ORCL"]
+        stock_symbols = [
+            "NVDA", "TSLA", "PLTR", "INTC", "AAPL", "BAC", "AMZN", "AMD", "GOOG", "MSFT",
+            "META", "AVGO", "NFLX", "COST", "UNH", "MSTR", "LLY", "CRM", "V", "REGN",
+            "APP", "WMT", "XOM", "MRVL", "ORCL", "JPM", "TXN", "ZS", "NOW", "MA",
+            "IBM", "UBER", "JNJ", "AMAT", "HOOD", "ADI", "GE", "MU", "PANW",
+            "INTU", "ABBV", "PG", "DELL", "CRWD", "SPOT", "LIN", "KO", "TMUS", "QCOM", "F"
+        ]
         stocks_data = []
         
         for symbol in stock_symbols:
@@ -142,7 +148,13 @@ async def broadcast_market_data(db: Session):
                 from stock.backend.services.stock_service import get_cached_stock_data, get_cached_crypto_data, TOP_10_CRYPTOS
                 
                 # 주요 주식 데이터 수집
-                stock_symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "NFLX", "CRM", "ORCL"]
+                stock_symbols = [
+                    "NVDA", "TSLA", "PLTR", "INTC", "AAPL", "BAC", "AMZN", "AMD", "GOOG", "MSFT",
+                    "META", "AVGO", "NFLX", "COST", "UNH", "MSTR", "LLY", "CRM", "V", "REGN",
+                    "APP", "WMT", "XOM", "MRVL", "ORCL", "JPM", "TXN", "ZS", "NOW", "MA",
+                    "IBM", "UBER", "JNJ", "AMAT", "HOOD", "ADI", "GE", "MU", "PANW",
+                    "INTU", "ABBV", "PG", "DELL", "CRWD", "SPOT", "LIN", "KO", "TMUS", "QCOM", "F"
+                ]
                 stocks_data = []
                 
                 for symbol in stock_symbols:
