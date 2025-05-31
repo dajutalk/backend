@@ -3,7 +3,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from stock.backend.websocket_manager import manager
 from stock.backend.data_service import DataService
-from stock.backend.database import get_db  # 기존 데이터베이스 세션 가져오기
+from stock.backend.database import get_db
 import logging
 import json
 import time
@@ -17,18 +17,18 @@ background_task = None
 is_broadcasting = False
 
 async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
-    """DB에서 최근 30개 데이터를 가져와서 전송"""
+    """📊 DB에서 최근 30개 데이터를 가져와서 전송 - 개선된 버전"""
     if db is None:
         logger.warning("⚠️ DB 세션이 없어서 캐시된 데이터 사용")
         await send_cached_market_data(websocket)
         return
         
     try:
-        from stock.backend.models import StockQuote, CryptoQuote
+        from stock.backend.database.models import StockQuote, CryptoQuote
         from stock.backend.services.stock_service import TOP_10_CRYPTOS
         from sqlalchemy import desc
         
-        # 주요 주식 데이터 수집 (DB에서 최근 30개)
+        # 🏢 주식 데이터 수집 (DB 우선, 캐시 fallback)
         stock_symbols = [
             "NVDA", "TSLA", "PLTR", "INTC", "AAPL", "BAC", "AMZN", "AMD", "GOOG", "MSFT",
             "META", "AVGO", "NFLX", "COST", "UNH", "MSTR", "LLY", "CRM", "V", "REGN",
@@ -38,7 +38,7 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
         ]
         stocks_data = []
         
-        logger.info(f"🔍 주식 데이터 조회 시작 - {len(stock_symbols)}개 심볼")
+        logger.info(f"📈 주식 데이터 조회 시작 - {len(stock_symbols)}개 심볼")
         
         for symbol in stock_symbols:
             try:
@@ -49,19 +49,17 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                     .limit(30)\
                     .all()
                 
-                logger.info(f"📊 {symbol}: {len(recent_quotes)}개 레코드 발견")  # debug -> info로 변경
-                
                 if recent_quotes:
                     # 시간순으로 정렬 (오래된 것부터)
                     recent_quotes.reverse()
                     
-                    # 차트용 히스토리 데이터 (30개 포인트)
+                    # 📊 차트용 히스토리 데이터 (30개 포인트)
                     history_data = []
                     for i, quote in enumerate(recent_quotes):
                         history_data.append({
                             "time": i + 1,  # 1부터 30까지의 인덱스
-                            "price": float(quote.c)
-                            # volume 필드 제거
+                            "price": float(quote.c),
+                            "timestamp": int(quote.created_at.timestamp() * 1000)
                         })
                     
                     # 변동폭과 변동률 계산
@@ -69,34 +67,57 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                     change = float(recent_quotes[-1].d) if recent_quotes[-1].d else 0
                     change_percent = float(recent_quotes[-1].dp) if recent_quotes[-1].dp else 0
                     
-                    # 프론트엔드가 기대하는 형식으로 데이터 구성
+                    # 🚀 프론트엔드가 기대하는 형식으로 데이터 구성
                     stock_item = {
                         "symbol": symbol,
                         "price": current_price,
                         "change": change,
                         "changePercent": change_percent,
-                        # volume 필드 제거
                         "history": history_data,
                         "timestamp": int(recent_quotes[-1].created_at.timestamp() * 1000),
-                        "data_source": "database"
+                        "data_source": "database",
+                        "last_updated": recent_quotes[-1].created_at.isoformat()
                     }
                     
                     stocks_data.append(stock_item)
-                    logger.info(f"✅ {symbol} 데이터 추가: ${current_price} ({change:+.2f}, {change_percent:+.2f}%)")
+                    logger.debug(f"✅ DB: {symbol} ${current_price} ({change:+.2f}, {change_percent:+.2f}%)")
+                
                 else:
-                    logger.info(f"⚠️ {symbol}: DB에 데이터 없음")
+                    # 📋 DB에 없으면 캐시에서 가져오기
+                    from stock.backend.services.stock_service import get_cached_stock_data
+                    cached_data = get_cached_stock_data(symbol)
+                    
+                    if cached_data:
+                        current_price = cached_data.get('c', 0)
+                        history_data = []
+                        for i in range(30):
+                            variation = current_price * 0.001 * (i - 15)  # ±1.5% 변동
+                            history_data.append({
+                                "time": i + 1,
+                                "price": current_price + variation,
+                                "timestamp": int(time.time() * 1000)
+                            })
+                        
+                        stock_item = {
+                            "symbol": symbol,
+                            "price": current_price,
+                            "change": cached_data.get('d', 0),
+                            "changePercent": cached_data.get('dp', 0),
+                            "history": history_data,
+                            "timestamp": int(time.time() * 1000),
+                            "data_source": "cache_fallback",
+                            "cache_age": cached_data.get('_cache_age', 0)
+                        }
+                        stocks_data.append(stock_item)
+                        logger.debug(f"📋 캐시: {symbol} ${current_price}")
                     
             except Exception as e:
-                logger.error(f"❌ 주식 {symbol} 조회 오류: {e}")
-                import traceback
-                logger.error(f"❌ {symbol} 상세 오류: {traceback.format_exc()}")
+                logger.error(f"❌ 주식 {symbol} 처리 오류: {e}")
                 continue
         
-        logger.info(f"📈 주식 데이터 수집 완료: {len(stocks_data)}개")
-        
-        # 암호화폐 데이터 수집 (DB에서 최근 30개)
+        # 💰 암호화폐 데이터 수집 (DB 우선)
         cryptos_data = []
-        logger.info(f"🔍 암호화폐 데이터 조회 시작 - {len(TOP_10_CRYPTOS)}개 심볼")
+        logger.info(f"💰 암호화폐 데이터 조회 시작 - {len(TOP_10_CRYPTOS)}개 심볼")
         
         for symbol in TOP_10_CRYPTOS:
             try:
@@ -106,44 +127,66 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                     .limit(30)\
                     .all()
                 
-                logger.debug(f"💰 {symbol}: {len(recent_crypto_quotes)}개 레코드 발견")
-                
                 if recent_crypto_quotes:
                     recent_crypto_quotes.reverse()
                     
-                    # 차트용 히스토리 데이터 (30개 포인트)
+                    # 📊 차트용 히스토리 데이터 (30개 포인트)
                     history_data = []
                     for i, quote in enumerate(recent_crypto_quotes):
                         history_data.append({
-                            "time": i + 1,  # 1부터 30까지의 인덱스
-                            "price": float(quote.p)
-                            # volume 필드 제거
+                            "time": i + 1,
+                            "price": float(quote.p),
+                            "timestamp": int(quote.created_at.timestamp() * 1000)
                         })
                     
-                    # 프론트엔드가 기대하는 형식으로 데이터 구성
+                    # 🚀 프론트엔드가 기대하는 형식으로 데이터 구성
                     crypto_item = {
                         "symbol": symbol,
                         "price": float(recent_crypto_quotes[-1].p),
-                        "change": 0,  # 암호화폐는 변동폭 데이터가 별도로 없음
-                        "changePercent": 0,  # 변동률 계산 필요시 추가
-                        # volume 필드 제거
+                        "change": 0,  # 암호화폐는 변동폭 계산 필요시 추가
+                        "changePercent": 0,
                         "history": history_data,
                         "timestamp": int(recent_crypto_quotes[-1].created_at.timestamp() * 1000),
-                        "data_source": "database"
+                        "data_source": "database",
+                        "last_updated": recent_crypto_quotes[-1].created_at.isoformat()
                     }
 
                     cryptos_data.append(crypto_item)
-                    logger.debug(f"✅ {symbol} 데이터 추가: ${float(recent_crypto_quotes[-1].p)}")
+                    logger.debug(f"✅ DB: {symbol} ${float(recent_crypto_quotes[-1].p)}")
                 else:
-                    logger.debug(f"⚠️ {symbol}: DB에 데이터 없음")
+                    # 📋 DB에 없으면 캐시에서 가져오기
+                    from stock.backend.services.stock_service import get_cached_crypto_data
+                    cached_data = get_cached_crypto_data(symbol)
+                    
+                    if cached_data:
+                        current_price = float(cached_data.get('p', 0))
+                        history_data = []
+                        for i in range(30):
+                            variation = current_price * 0.001 * (i - 15)
+                            history_data.append({
+                                "time": i + 1,
+                                "price": current_price + variation,
+                                "timestamp": int(time.time() * 1000)
+                            })
+                        
+                        crypto_item = {
+                            "symbol": symbol,
+                            "price": current_price,
+                            "change": 0,
+                            "changePercent": 0,
+                            "history": history_data,
+                            "timestamp": int(time.time() * 1000),
+                            "data_source": "cache_fallback",
+                            "cache_age": cached_data.get('_cache_age', 0)
+                        }
+                        cryptos_data.append(crypto_item)
+                        logger.debug(f"📋 캐시: {symbol} ${current_price}")
                     
             except Exception as e:
-                logger.error(f"❌ 암호화폐 {symbol} 조회 오류: {e}")
+                logger.error(f"❌ 암호화폐 {symbol} 처리 오류: {e}")
                 continue
         
-        logger.info(f"💰 암호화폐 데이터 수집 완료: {len(cryptos_data)}개")
-        
-        # 프론트엔드가 기대하는 형식으로 데이터 전송
+        # 🚀 프론트엔드가 기대하는 형식으로 데이터 전송
         market_data = {
             "type": "market_update",
             "data": {
@@ -151,12 +194,28 @@ async def send_market_data_from_db(websocket: WebSocket, db: Session = None):
                 "cryptos": cryptos_data
             },
             "timestamp": int(time.time() * 1000),
-            "data_source": "database",
-            "message": f"DB에서 {len(stocks_data)}개 주식, {len(cryptos_data)}개 암호화폐 데이터 전송"
+            "stats": {
+                "stocks_from_db": len([s for s in stocks_data if s.get("data_source") == "database"]),
+                "stocks_from_cache": len([s for s in stocks_data if s.get("data_source") == "cache_fallback"]),
+                "cryptos_from_db": len([c for c in cryptos_data if c.get("data_source") == "database"]),
+                "cryptos_from_cache": len([c for c in cryptos_data if c.get("data_source") == "cache_fallback"]),
+                "total_stocks": len(stocks_data),
+                "total_cryptos": len(cryptos_data)
+            },
+            "message": f"📊 DB+캐시 혼합: 주식 {len(stocks_data)}개, 암호화폐 {len(cryptos_data)}개"
         }
         
         await manager.send_personal_message(market_data, websocket)
-        logger.info(f"✅ DB market data sent - {len(stocks_data)} stocks with history, {len(cryptos_data)} cryptos with history")
+        
+        # 📈 통계 로깅
+        db_stocks = len([s for s in stocks_data if s.get("data_source") == "database"])
+        cache_stocks = len([s for s in stocks_data if s.get("data_source") == "cache_fallback"])
+        db_cryptos = len([c for c in cryptos_data if c.get("data_source") == "database"])
+        cache_cryptos = len([c for c in cryptos_data if c.get("data_source") == "cache_fallback"])
+        
+        logger.info(f"✅ 📊 데이터 전송 완료:")
+        logger.info(f"   주식: DB {db_stocks}개 + 캐시 {cache_stocks}개 = 총 {len(stocks_data)}개")
+        logger.info(f"   암호화폐: DB {db_cryptos}개 + 캐시 {cache_cryptos}개 = 총 {len(cryptos_data)}개")
         
     except Exception as e:
         logger.error(f"❌ DB에서 데이터 조회 오류: {e}")
