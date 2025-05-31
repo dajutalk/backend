@@ -170,41 +170,51 @@ background_thread.start()
 async def get_stock_symbols(exchange: str, currency: str = "USD"):
     """
     Finnhub API를 통해 특정 거래소의 주식 심볼 목록을 가져오는 함수
-    
-    :param exchange: 거래소 코드 (예: US, KR)
-    :param currency: 통화 (기본값: USD)
-    :return: 주식 심볼 목록
+    API 키가 유효하지 않은 경우 모의 데이터 반환
     """
     try:
-        # 기본 URL 및 필수 파라미터
+        # API 키 확인
+        if not API_KEY or API_KEY == "your_api_key_here":
+            logger.warning("⚠️ 유효하지 않은 API 키, 모의 데이터 반환")
+            return get_mock_stock_symbols()
+        
         url = f"https://finnhub.io/api/v1/stock/symbol?exchange={exchange}&currency={currency}&token={API_KEY}"
         
         logger.info(f"주식 심볼 목록 요청: exchange={exchange}, currency={currency}")
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         
         if response.status_code == 200:
-            return response.json()
+            data = response.json()
+            # 상위 30개만 반환
+            return data[:30] if len(data) > 30 else data
+        elif response.status_code == 401:
+            logger.error(f"❌ API 키 인증 실패: {response.text}")
+            logger.info("📝 모의 데이터로 대체합니다")
+            return get_mock_stock_symbols()
         else:
             logger.error(f"API 요청 실패: {response.status_code}, {response.text}")
             return {"error": f"API 요청 실패: {response.status_code}"}
     
     except Exception as e:
         logger.error(f"주식 심볼 목록 요청 중 오류: {e}")
-        return {"error": str(e)}
+        logger.info("📝 모의 데이터로 대체합니다")
+        return get_mock_stock_symbols()
 
 async def get_crypto_symbols(exchange: str):
     """
     Finnhub API를 통해 특정 거래소의 암호화폐 심볼 목록을 가져오는 함수
-    
-    :param exchange: 암호화폐 거래소 이름 (예: binance, coinbase)
-    :return: 암호화폐 심볼 목록
+    API 키가 유효하지 않은 경우 모의 데이터 반환
     """
     try:
-        # 기본 URL 및 필수 파라미터
+        # API 키 확인
+        if not API_KEY or API_KEY == "your_api_key_here":
+            logger.warning("⚠️ 유효하지 않은 API 키, 모의 데이터 반환")
+            return get_mock_crypto_symbols()
+        
         url = f"https://finnhub.io/api/v1/crypto/symbol?exchange={exchange}&token={API_KEY}"
         
         logger.info(f"암호화폐 심볼 목록 요청: exchange={exchange}")
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         
         if response.status_code == 200:
             data = response.json()
@@ -219,11 +229,57 @@ async def get_crypto_symbols(exchange: str):
                 }
                 formatted_data.append(formatted_item)
             
-            return formatted_data
+            # 상위 30개만 반환
+            return formatted_data[:30] if len(formatted_data) > 30 else formatted_data
+        elif response.status_code == 401:
+            logger.error(f"❌ API 키 인증 실패: {response.text}")
+            logger.info("📝 모의 데이터로 대체합니다")
+            return get_mock_crypto_symbols()
         else:
             logger.error(f"암호화폐 API 요청 실패: {response.status_code}, {response.text}")
             return {"error": f"API 요청 실패: {response.status_code}"}
     
     except Exception as e:
         logger.error(f"암호화폐 심볼 목록 요청 중 오류: {e}")
-        return {"error": str(e)}
+        logger.info("📝 모의 데이터로 대체합니다")
+        return get_mock_crypto_symbols()
+
+def get_mock_stock_symbols():
+    """모의 주식 심볼 데이터"""
+    return [
+        {"symbol": "AAPL", "description": "Apple Inc", "displaySymbol": "AAPL", "type": "Common Stock"},
+        {"symbol": "MSFT", "description": "Microsoft Corporation", "displaySymbol": "MSFT", "type": "Common Stock"},
+        {"symbol": "GOOGL", "description": "Alphabet Inc", "displaySymbol": "GOOGL", "type": "Common Stock"},
+        {"symbol": "AMZN", "description": "Amazon.com Inc", "displaySymbol": "AMZN", "type": "Common Stock"},
+        {"symbol": "TSLA", "description": "Tesla Inc", "displaySymbol": "TSLA", "type": "Common Stock"},
+        {"symbol": "META", "description": "Meta Platforms Inc", "displaySymbol": "META", "type": "Common Stock"},
+        {"symbol": "NVDA", "description": "NVIDIA Corporation", "displaySymbol": "NVDA", "type": "Common Stock"},
+        {"symbol": "JPM", "description": "JPMorgan Chase & Co", "displaySymbol": "JPM", "type": "Common Stock"},
+        {"symbol": "JNJ", "description": "Johnson & Johnson", "displaySymbol": "JNJ", "type": "Common Stock"},
+        {"symbol": "V", "description": "Visa Inc", "displaySymbol": "V", "type": "Common Stock"},
+        {"symbol": "PG", "description": "Procter & Gamble Co", "displaySymbol": "PG", "type": "Common Stock"},
+        {"symbol": "UNH", "description": "UnitedHealth Group Inc", "displaySymbol": "UNH", "type": "Common Stock"},
+        {"symbol": "HD", "description": "Home Depot Inc", "displaySymbol": "HD", "type": "Common Stock"},
+        {"symbol": "MA", "description": "Mastercard Inc", "displaySymbol": "MA", "type": "Common Stock"},
+        {"symbol": "DIS", "description": "Walt Disney Co", "displaySymbol": "DIS", "type": "Common Stock"}
+    ]
+
+def get_mock_crypto_symbols():
+    """모의 암호화폐 심볼 데이터"""
+    return [
+        {"symbol": "BINANCE:BTCUSDT", "displaySymbol": "BTC/USDT", "description": "Bitcoin / Tether"},
+        {"symbol": "BINANCE:ETHUSDT", "displaySymbol": "ETH/USDT", "description": "Ethereum / Tether"},
+        {"symbol": "BINANCE:BNBUSDT", "displaySymbol": "BNB/USDT", "description": "BNB / Tether"},
+        {"symbol": "BINANCE:ADAUSDT", "displaySymbol": "ADA/USDT", "description": "Cardano / Tether"},
+        {"symbol": "BINANCE:SOLUSDT", "displaySymbol": "SOL/USDT", "description": "Solana / Tether"},
+        {"symbol": "BINANCE:XRPUSDT", "displaySymbol": "XRP/USDT", "description": "XRP / Tether"},
+        {"symbol": "BINANCE:DOTUSDT", "displaySymbol": "DOT/USDT", "description": "Polkadot / Tether"},
+        {"symbol": "BINANCE:DOGEUSDT", "displaySymbol": "DOGE/USDT", "description": "Dogecoin / Tether"},
+        {"symbol": "BINANCE:AVAXUSDT", "displaySymbol": "AVAX/USDT", "description": "Avalanche / Tether"},
+        {"symbol": "BINANCE:SHIBUSDT", "displaySymbol": "SHIB/USDT", "description": "Shiba Inu / Tether"},
+        {"symbol": "BINANCE:MATICUSDT", "displaySymbol": "MATIC/USDT", "description": "Polygon / Tether"},
+        {"symbol": "BINANCE:LTCUSDT", "displaySymbol": "LTC/USDT", "description": "Litecoin / Tether"},
+        {"symbol": "BINANCE:UNIUSDT", "displaySymbol": "UNI/USDT", "description": "Uniswap / Tether"},
+        {"symbol": "BINANCE:LINKUSDT", "displaySymbol": "LINK/USDT", "description": "Chainlink / Tether"},
+        {"symbol": "BINANCE:ATOMUSDT", "displaySymbol": "ATOM/USDT", "description": "Cosmos / Tether"}
+    ]
