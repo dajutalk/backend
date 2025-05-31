@@ -40,16 +40,20 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
     
     # 사용 가능한 캐시가 있는지 확인
     with request_lock:
-        # 캐시와 마지막 요청 시간 확인
-        if symbol in stock_cache and symbol in last_request_time:
-            cache_age = current_time - last_request_time[symbol]
-            
-            # 60초 이내 데이터는 캐시 사용
+        # 기존 캐시 확인
+        if symbol in stock_cache:
+            cache_age = current_time - last_request_time.get(symbol, 0)
+            # 60초(1분) 이내의 데이터는 캐시 사용
             if cache_age < 60:
                 logger.info(f"캐시된 데이터 반환: {symbol}, 경과 시간: {cache_age:.1f}초")
                 return stock_cache[symbol]
         
-        # 60초 이상 지났거나 캐시가 없는 경우 API 요청
+        # 이 심볼에 대해 마지막 요청 후 최소 60초 지났는지 확인
+        if symbol in last_request_time and current_time - last_request_time[symbol] < 60:
+            logger.info(f"요청 제한으로 캐시된 데이터 반환: {symbol}")
+            return stock_cache.get(symbol)
+        
+        # API 요청
         try:
             url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={API_KEY}"
             logger.info(f"Finnhub API 요청: {url}")
@@ -72,7 +76,6 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
                         't': int(time.time() * 1000) # 타임스탬프 (밀리초)
                     }
                     
-                    # 캐시 업데이트
                     stock_cache[symbol] = formatted_data
                     last_request_time[symbol] = current_time
                     
@@ -85,12 +88,12 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
         except Exception as e:
             logger.error(f"API 요청 중 오류 발생: {e}")
         
-        # 오류 시 기존 캐시 반환
+        # 오류 시 기존 캐시가 있으면 반환
         if symbol in stock_cache:
             logger.warning(f"API 요청 실패로 캐시 데이터 반환: {symbol}")
-            return stock_cache[symbol]
+            return stock_cache.get(symbol)
         
-        # 최후 수단: 모의 데이터
+        # 캐시도 없고 API 요청도 실패한 경우 직접 모의 데이터 반환 (임시 조치)
         logger.warning(f"모의 데이터 생성: {symbol}")
         mock_data = {
             's': symbol,
@@ -103,6 +106,7 @@ def get_stock_quote(symbol: str) -> Optional[Dict[str, Any]]:
             't': int(time.time() * 1000)
         }
         
+        # 모의 데이터도 캐싱
         stock_cache[symbol] = mock_data
         last_request_time[symbol] = current_time
         
@@ -167,54 +171,82 @@ background_thread = threading.Thread(
 )
 background_thread.start()
 
+def stop_background_updates():
+    """백그라운드 업데이트 스레드 중지"""
+    global background_thread
+    if background_thread and background_thread.is_alive():
+        # 스레드 종료 신호 (데몬 스레드이므로 메인 프로그램 종료 시 자동 종료됨)
+        logger.info("백그라운드 업데이트 스레드 종료 예정")
+
+def get_cache_status():
+    """캐시 상태 정보 반환"""
+    with request_lock:
+        current_time = time.time()
+        return {
+            "total_cached_symbols": len(stock_cache),
+            "cache_ages": {
+                symbol: current_time - last_request_time.get(symbol, 0) 
+                for symbol in stock_cache.keys()
+            },
+            "oldest_cache": max([current_time - t for t in last_request_time.values()]) if last_request_time else 0
+        }
+
+def clear_old_cache(max_age_hours=24):
+    """오래된 캐시 데이터 정리"""
+    current_time = time.time()
+    max_age_seconds = max_age_hours * 3600
+    symbols_to_remove = []
+    
+    with request_lock:
+        for symbol in list(stock_cache.keys()):
+            if current_time - last_request_time.get(symbol, 0) > max_age_seconds:
+                symbols_to_remove.append(symbol)
+        
+        for symbol in symbols_to_remove:
+            stock_cache.pop(symbol, None)
+            last_request_time.pop(symbol, None)
+            logger.info(f"오래된 캐시 정리: {symbol}")
+    
+    return len(symbols_to_remove)
+
 async def get_stock_symbols(exchange: str, currency: str = "USD"):
     """
     Finnhub API를 통해 특정 거래소의 주식 심볼 목록을 가져오는 함수
-    API 키가 유효하지 않은 경우 모의 데이터 반환
+    
+    :param exchange: 거래소 코드 (예: US, KR)
+    :param currency: 통화 (기본값: USD)
+    :return: 주식 심볼 목록
     """
     try:
-        # API 키 확인
-        if not API_KEY or API_KEY == "your_api_key_here":
-            logger.warning("⚠️ 유효하지 않은 API 키, 모의 데이터 반환")
-            return get_mock_stock_symbols()
-        
+        # 기본 URL 및 필수 파라미터
         url = f"https://finnhub.io/api/v1/stock/symbol?exchange={exchange}&currency={currency}&token={API_KEY}"
         
         logger.info(f"주식 심볼 목록 요청: exchange={exchange}, currency={currency}")
-        response = requests.get(url, timeout=10)
+        response = requests.get(url)
         
         if response.status_code == 200:
-            data = response.json()
-            # 상위 30개만 반환
-            return data[:30] if len(data) > 30 else data
-        elif response.status_code == 401:
-            logger.error(f"❌ API 키 인증 실패: {response.text}")
-            logger.info("📝 모의 데이터로 대체합니다")
-            return get_mock_stock_symbols()
+            return response.json()
         else:
             logger.error(f"API 요청 실패: {response.status_code}, {response.text}")
             return {"error": f"API 요청 실패: {response.status_code}"}
     
     except Exception as e:
         logger.error(f"주식 심볼 목록 요청 중 오류: {e}")
-        logger.info("📝 모의 데이터로 대체합니다")
-        return get_mock_stock_symbols()
+        return {"error": str(e)}
 
 async def get_crypto_symbols(exchange: str):
     """
     Finnhub API를 통해 특정 거래소의 암호화폐 심볼 목록을 가져오는 함수
-    API 키가 유효하지 않은 경우 모의 데이터 반환
+    
+    :param exchange: 암호화폐 거래소 이름 (예: binance, coinbase)
+    :return: 암호화폐 심볼 목록
     """
     try:
-        # API 키 확인
-        if not API_KEY or API_KEY == "your_api_key_here":
-            logger.warning("⚠️ 유효하지 않은 API 키, 모의 데이터 반환")
-            return get_mock_crypto_symbols()
-        
+        # 기본 URL 및 필수 파라미터
         url = f"https://finnhub.io/api/v1/crypto/symbol?exchange={exchange}&token={API_KEY}"
         
         logger.info(f"암호화폐 심볼 목록 요청: exchange={exchange}")
-        response = requests.get(url, timeout=10)
+        response = requests.get(url)
         
         if response.status_code == 200:
             data = response.json()
@@ -229,57 +261,11 @@ async def get_crypto_symbols(exchange: str):
                 }
                 formatted_data.append(formatted_item)
             
-            # 상위 30개만 반환
-            return formatted_data[:30] if len(formatted_data) > 30 else formatted_data
-        elif response.status_code == 401:
-            logger.error(f"❌ API 키 인증 실패: {response.text}")
-            logger.info("📝 모의 데이터로 대체합니다")
-            return get_mock_crypto_symbols()
+            return formatted_data
         else:
             logger.error(f"암호화폐 API 요청 실패: {response.status_code}, {response.text}")
             return {"error": f"API 요청 실패: {response.status_code}"}
     
     except Exception as e:
         logger.error(f"암호화폐 심볼 목록 요청 중 오류: {e}")
-        logger.info("📝 모의 데이터로 대체합니다")
-        return get_mock_crypto_symbols()
-
-def get_mock_stock_symbols():
-    """모의 주식 심볼 데이터"""
-    return [
-        {"symbol": "AAPL", "description": "Apple Inc", "displaySymbol": "AAPL", "type": "Common Stock"},
-        {"symbol": "MSFT", "description": "Microsoft Corporation", "displaySymbol": "MSFT", "type": "Common Stock"},
-        {"symbol": "GOOGL", "description": "Alphabet Inc", "displaySymbol": "GOOGL", "type": "Common Stock"},
-        {"symbol": "AMZN", "description": "Amazon.com Inc", "displaySymbol": "AMZN", "type": "Common Stock"},
-        {"symbol": "TSLA", "description": "Tesla Inc", "displaySymbol": "TSLA", "type": "Common Stock"},
-        {"symbol": "META", "description": "Meta Platforms Inc", "displaySymbol": "META", "type": "Common Stock"},
-        {"symbol": "NVDA", "description": "NVIDIA Corporation", "displaySymbol": "NVDA", "type": "Common Stock"},
-        {"symbol": "JPM", "description": "JPMorgan Chase & Co", "displaySymbol": "JPM", "type": "Common Stock"},
-        {"symbol": "JNJ", "description": "Johnson & Johnson", "displaySymbol": "JNJ", "type": "Common Stock"},
-        {"symbol": "V", "description": "Visa Inc", "displaySymbol": "V", "type": "Common Stock"},
-        {"symbol": "PG", "description": "Procter & Gamble Co", "displaySymbol": "PG", "type": "Common Stock"},
-        {"symbol": "UNH", "description": "UnitedHealth Group Inc", "displaySymbol": "UNH", "type": "Common Stock"},
-        {"symbol": "HD", "description": "Home Depot Inc", "displaySymbol": "HD", "type": "Common Stock"},
-        {"symbol": "MA", "description": "Mastercard Inc", "displaySymbol": "MA", "type": "Common Stock"},
-        {"symbol": "DIS", "description": "Walt Disney Co", "displaySymbol": "DIS", "type": "Common Stock"}
-    ]
-
-def get_mock_crypto_symbols():
-    """모의 암호화폐 심볼 데이터"""
-    return [
-        {"symbol": "BINANCE:BTCUSDT", "displaySymbol": "BTC/USDT", "description": "Bitcoin / Tether"},
-        {"symbol": "BINANCE:ETHUSDT", "displaySymbol": "ETH/USDT", "description": "Ethereum / Tether"},
-        {"symbol": "BINANCE:BNBUSDT", "displaySymbol": "BNB/USDT", "description": "BNB / Tether"},
-        {"symbol": "BINANCE:ADAUSDT", "displaySymbol": "ADA/USDT", "description": "Cardano / Tether"},
-        {"symbol": "BINANCE:SOLUSDT", "displaySymbol": "SOL/USDT", "description": "Solana / Tether"},
-        {"symbol": "BINANCE:XRPUSDT", "displaySymbol": "XRP/USDT", "description": "XRP / Tether"},
-        {"symbol": "BINANCE:DOTUSDT", "displaySymbol": "DOT/USDT", "description": "Polkadot / Tether"},
-        {"symbol": "BINANCE:DOGEUSDT", "displaySymbol": "DOGE/USDT", "description": "Dogecoin / Tether"},
-        {"symbol": "BINANCE:AVAXUSDT", "displaySymbol": "AVAX/USDT", "description": "Avalanche / Tether"},
-        {"symbol": "BINANCE:SHIBUSDT", "displaySymbol": "SHIB/USDT", "description": "Shiba Inu / Tether"},
-        {"symbol": "BINANCE:MATICUSDT", "displaySymbol": "MATIC/USDT", "description": "Polygon / Tether"},
-        {"symbol": "BINANCE:LTCUSDT", "displaySymbol": "LTC/USDT", "description": "Litecoin / Tether"},
-        {"symbol": "BINANCE:UNIUSDT", "displaySymbol": "UNI/USDT", "description": "Uniswap / Tether"},
-        {"symbol": "BINANCE:LINKUSDT", "displaySymbol": "LINK/USDT", "description": "Chainlink / Tether"},
-        {"symbol": "BINANCE:ATOMUSDT", "displaySymbol": "ATOM/USDT", "description": "Cosmos / Tether"}
-    ]
+        return {"error": str(e)}

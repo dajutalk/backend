@@ -5,6 +5,7 @@ import threading
 import time
 import requests
 from stock.backend.utils.ws_manager import broadcast_stock_data
+from stock.backend.services.db_service import db_service
 import os
 from dotenv import load_dotenv
 import logging
@@ -50,21 +51,45 @@ update_thread = None
 thread_running = False
 
 def update_stock_data(symbol):
-    """주식 데이터를 업데이트하고 캐시에 저장"""
+    """주식 데이터를 업데이트하고 캐시 및 데이터베이스에 저장"""
+    start_time = time.time()
     try:
         url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={API_KEY}"
         logger.info(f"주식 업데이트 요청: {symbol}")
         
         response = requests.get(url, timeout=5)
+        response_time = time.time() - start_time
         
         if response.status_code == 200:
             data = response.json()
             
             if 'c' in data:
+                current_time = time.time()
+                # 캐시 정보 추가
+                data['_cache_info'] = {
+                    'cached_at': current_time,
+                    'source': 'api'
+                }
+                data['_cache_age'] = 0
+                data['data_source'] = 'api'
+                data['cache_age'] = 0
+                
+                # 변동률 계산
+                if 'c' in data and 'pc' in data:
+                    current_price = data['c']
+                    prev_close = data['pc']
+                    data['d'] = current_price - prev_close
+                    data['dp'] = ((current_price - prev_close) / prev_close) * 100 if prev_close != 0 else 0
+                
                 with cache_lock:
                     stock_cache[symbol] = data
-                    last_update_time[symbol] = time.time()
-                logger.info(f"주식 데이터 업데이트 완료: {symbol}")
+                    last_update_time[symbol] = current_time
+                
+                # 📊 데이터베이스에 저장
+                db_service.save_stock_quote(data, symbol)
+                db_service.update_cache_info(symbol, is_api_call=True, response_time=response_time)
+                
+                logger.info(f"주식 데이터 업데이트 완료: {symbol} (API 호출)")
                 return True
             else:
                 logger.error(f"유효하지 않은 응답: {data}")
@@ -74,6 +99,8 @@ def update_stock_data(symbol):
         return False
     except Exception as e:
         logger.error(f"업데이트 중 오류: {e}")
+        # 📊 오류 정보 저장
+        db_service.update_cache_info(symbol, is_api_call=True, response_time=time.time() - start_time)
         return False
 
 def periodic_update_worker():
@@ -127,18 +154,70 @@ def register_symbol(symbol):
 
 def get_cached_stock_data(symbol):
     """캐시된 주식 데이터 조회, 없으면 업데이트 후 반환"""
+    current_time = time.time()
+    
     with cache_lock:
         # 캐시에 있는지 확인
         if symbol in stock_cache:
-            return stock_cache[symbol]
+            cached_data = stock_cache[symbol].copy()
+            # 캐시 경과 시간 계산
+            cache_info = cached_data.get('_cache_info', {})
+            cached_at = cache_info.get('cached_at', 0)
+            cache_age = current_time - cached_at
+            cached_data['_cache_age'] = cache_age
+            cached_data['_data_source'] = 'cache'  # 명시적으로 캐시에서 가져옴을 표시
+            
+            # 📊 캐시 히트 기록
+            db_service.update_cache_info(symbol, is_api_call=False)
+            
+            logger.info(f"📋 캐시에서 데이터 반환: {symbol} (캐시 경과: {cache_age:.1f}초)")
+            return cached_data
     
     # 캐시에 없으면 등록하고 업데이트
+    logger.info(f"🌐 캐시에 없음, 새로 API 호출: {symbol}")
     register_symbol(symbol)
     
     # 업데이트 후 다시 확인
     with cache_lock:
         if symbol in stock_cache:
-            return stock_cache[symbol]
+            cached_data = stock_cache[symbol].copy()
+            cached_data['_cache_age'] = 0  # 방금 업데이트됨
+            cached_data['_data_source'] = 'api'  # API에서 새로 가져옴을 표시
+            logger.info(f"🆕 새로 업데이트된 데이터 반환: {symbol}")
+            return cached_data
     
     return None
+
+def cleanup_inactive_symbols():
+    """비활성화된 심볼들을 캐시에서 정리"""
+    global active_symbols
+    
+    current_time = time.time()
+    symbols_to_remove = []
+    
+    with cache_lock:
+        for symbol in list(stock_cache.keys()):
+            # 12시간 이상 업데이트되지 않은 심볼 제거
+            if symbol not in active_symbols and current_time - last_update_time.get(symbol, 0) > 43200:
+                symbols_to_remove.append(symbol)
+        
+        for symbol in symbols_to_remove:
+            stock_cache.pop(symbol, None)
+            last_update_time.pop(symbol, None)
+            logger.info(f"비활성 심볼 캐시 정리: {symbol}")
+
+def stop_update_thread():
+    """업데이트 스레드 중지"""
+    global thread_running
+    thread_running = False
+    logger.info("주기적 업데이트 스레드 중지됨")
+
+def get_cache_statistics():
+    """캐시 통계 정보 반환"""
+    with cache_lock:
+        return {
+            "cached_symbols": len(stock_cache),
+            "active_symbols": len(active_symbols),
+            "last_updates": {symbol: time.time() - last_time for symbol, last_time in last_update_time.items()}
+        }
 

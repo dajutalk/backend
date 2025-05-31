@@ -23,4 +23,3 @@ app.include_router(stock.rest_router)
 
 
 
-
