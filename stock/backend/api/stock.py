@@ -100,7 +100,7 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str = Query(...)):
                             "data": [{
                                 "s": symbol,
                                 "p": str(latest_quote.c),
-                                "v": str(latest_quote.v) if latest_quote.v else "0",
+                                "v": "0",  # StockQuote에는 volume 필드가 없으므로 0으로 고정
                                 "t": int(latest_quote.created_at.timestamp() * 1000)
                             }],
                             "data_source": "database"

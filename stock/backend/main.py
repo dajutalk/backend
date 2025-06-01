@@ -29,13 +29,14 @@ app.add_middleware(
 
 # WebSocket 라우터 등록
 app.include_router(stock.router)
-app.include_router(chat.router)
+app.include_router(chat.router)  # 채팅 WebSocket 라우터 추가
 
 # WebSocket 라우터 추가
 app.include_router(websocket_router, tags=["websocket"])
 
 # REST API 라우터 추가
 app.include_router(stock.rest_router)
+app.include_router(chat.rest_router)  # 채팅 REST API 라우터 추가
 
 # 애플리케이션 시작 시 데이터베이스 테이블 생성
 @app.on_event("startup")
