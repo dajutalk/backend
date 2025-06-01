@@ -242,3 +242,41 @@ def auth_status():
         "kakao_configured": bool(KAKAO_CLIENT_ID),
         "jwt_configured": True
     }
+
+@router.post("/check-email")
+async def check_email_availability(
+    email: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """이메일 사용 가능 여부 확인"""
+    try:
+        existing_user = crud.get_user_by_email(db, email)
+        available = existing_user is None
+        
+        return {
+            "email": email,
+            "available": available,
+            "message": "사용 가능한 이메일입니다" if available else "이미 사용 중인 이메일입니다"
+        }
+    except Exception as e:
+        logger.error(f"이메일 확인 오류: {e}")
+        raise HTTPException(status_code=500, detail="이메일 확인 중 오류가 발생했습니다")
+
+@router.post("/check-nickname")
+async def check_nickname_availability(
+    nickname: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """닉네임 사용 가능 여부 확인"""
+    try:
+        existing_user = crud.get_user_by_nickname(db, nickname)
+        available = existing_user is None
+        
+        return {
+            "nickname": nickname,
+            "available": available,
+            "message": "사용 가능한 닉네임입니다" if available else "이미 사용 중인 닉네임입니다"
+        }
+    except Exception as e:
+        logger.error(f"닉네임 확인 오류: {e}")
+        raise HTTPException(status_code=500, detail="닉네임 확인 중 오류가 발생했습니다")
