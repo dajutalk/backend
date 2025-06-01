@@ -34,7 +34,7 @@ def login_or_signup(
             raise HTTPException(status_code=400, detail="잘못된 로그인 정보입니다")
         logger.info(f"기존 사용자 로그인: {email}")
     else:
-        # 새 사용자 회원가입
+        # 새 사용자 회원가입 (자동으로 처리)
         new_user = schemas.UserCreate(
             email=email,
             password=password,
@@ -84,6 +84,7 @@ def kakao_login(
         # 사용자 조회 또는 생성
         user = crud.get_user_by_email(db, generated_email)
         if not user:
+            # 카카오 신규 사용자 자동 회원가입
             new_user = schemas.UserCreate(
                 email=generated_email,
                 password=None,
