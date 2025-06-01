@@ -40,7 +40,7 @@ class DatabaseSettings:
     
     def __init__(self):
         self.user = os.getenv("DB_USER", "root")
-        self.password = os.getenv("DB_PASSWORD", "36367")
+        self.password = os.getenv("DB_PASSWORD", "")  # 기본값 제거
         self.host = os.getenv("DB_HOST", "localhost")
         self.port = os.getenv("DB_PORT", "3306")
         self.name = os.getenv("DB_NAME", "stock_db")
@@ -77,11 +77,15 @@ class AuthSettings:
     """인증 설정"""
     
     def __init__(self):
-        self.jwt_secret_key = os.getenv("JWT_SECRET_KEY", "your-secret-key-here-change-in-production")
+        self.jwt_secret_key = os.getenv("JWT_SECRET_KEY", "")  # 기본값 제거 - 필수로 설정하게
         self.jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
         self.jwt_expire_minutes = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
         self.kakao_client_id = os.getenv("KAKAO_CLIENT_ID", "")
         self.kakao_redirect_uri = os.getenv("KAKAO_REDIRECT_URI", "http://localhost:8000/auth/kakao/callback")
+        
+        # JWT 시크릿 키 검증
+        if not self.jwt_secret_key:
+            raise ValueError("JWT_SECRET_KEY는 필수 환경변수입니다. .env 파일에 설정하세요.")
         
         print(f"🔐 인증 설정:")
         print(f"   JWT 만료시간: {self.jwt_expire_minutes}분")

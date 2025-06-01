@@ -1,39 +1,112 @@
-# 웹 소켓을 이용한 실시간 채팅 
+# 🚀 Stock Trading Platform
 
-이 프로젝트는 Django와 MySQL을 기반으로 실시간 채팅 기능을 구현하며,  
-협업을 위한 **uv 가상환경 기반 개발환경**을 구축합니다.
+실시간 주식 데이터와 사용자 인증이 통합된 웹 플랫폼입니다.
 
----
+## ✨ 주요 기능
 
-## 프로젝트 개요
+- 📊 **실시간 주식 데이터**: 50개 주요 주식의 실시간 시세
+- 💰 **암호화폐 데이터**: 상위 10개 암호화폐 실시간 시세
+- 🔐 **사용자 인증**: 일반 로그인/회원가입 + 카카오 소셜 로그인
+- 💬 **실시간 채팅**: 종목별 채팅방
+- 🔌 **WebSocket 지원**: 실시간 데이터 스트리밍
 
-- **백엔드 프레임워크**: Django 4.2.20 (LTS)
-- **DB**: MySQL 8.0.11 이상
-- **패키지 관리**: uv
-- **Python 버전**: 3.12.9
+## 🛠️ 기술 스택
 
----
-# 세팅 가이드
-1. uv 설치
-- `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **Backend**: FastAPI, Python
+- **Database**: MySQL
+- **Authentication**: JWT + OAuth (Kakao)
+- **Real-time**: WebSocket
+- **API**: Finnhub Stock API
 
-2. 레포지토리 클론
-- `git clone 
+## 📋 사전 요구사항
 
-3. 프로젝트 디렉토리 진입 후
-cd Chat_Project
-4. 가상환경 설정 및 패키지 설치
-- `uv venv`
-- `source .venv/bin/activate`
-- `uv sync`
+- Python 3.8+
+- MySQL 8.0+
+- Node.js 16+ (프론트엔드용)
 
-# 주의사항
-**.env** 절대 커밋 금지
-**.env.example을 참고하여 .env를 직접 생성하세요**
+## ⚙️ 설정
 
+### 1. 환경변수 설정
 
-# 파일 구조
+```bash
+# .env.example을 복사하여 .env 파일 생성
+cp .env.example .env
 
+# .env 파일을 편집하여 실제 값 입력
+```
+
+**필수 설정값:**
+- `DB_PASSWORD`: MySQL 데이터베이스 비밀번호
+- `FINNHUB_API_KEY`: [Finnhub](https://finnhub.io/)에서 발급받은 API 키
+- `JWT_SECRET_KEY`: JWT 토큰 서명용 시크릿 키 (최소 32자)
+- `KAKAO_CLIENT_ID`: 카카오 개발자 콘솔에서 발급받은 클라이언트 ID
+
+### 2. 데이터베이스 설정
+
+```sql
+-- MySQL에 데이터베이스 생성
+CREATE DATABASE stock_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+### 3. 패키지 설치
+
+```bash
+# Python 의존성 설치
+pip install -r requirements.txt
+
+# 또는 uv 사용
+uv sync
+```
+
+## 🚀 실행
+
+### 백엔드 서버 실행
+
+```bash
+cd /path/to/project
+uv run uvicorn stock.backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### API 문서 확인
+
+서버 실행 후 브라우저에서 접속:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## 📡 API 엔드포인트
+
+### 인증 API
+- `POST /auth/signup` - 회원가입
+- `POST /auth/login` - 로그인
+- `GET /auth/kakao/redirect` - 카카오 로그인
+- `GET /auth/me` - 사용자 정보 조회
+- `POST /auth/logout` - 로그아웃
+
+### 주식 데이터 API
+- `GET /api/stocks/quote?symbol=AAPL` - 개별 주식 시세
+- `GET /api/stocks/history/AAPL?hours=24` - 주식 히스토리
+- `GET /api/stocks/crypto/BTC` - 암호화폐 시세
+
+### WebSocket 엔드포인트
+- `ws://localhost:8000/ws/main` - 전체 시장 데이터
+- `ws://localhost:8000/ws/stocks?symbol=AAPL` - 개별 주식
+- `ws://localhost:8000/ws/chat/AAPL?nickname=홍길동` - 채팅
+
+## 🧪 테스트
+
+```bash
+# API 테스트
+python -m stock.backend.test.test_scheduler
+
+# WebSocket 테스트
+python -m stock.backend.test.test_stock_websocket AAPL
+
+# 채팅 테스트
+python -m stock.backend.test.test_chat_room --symbol AAPL
+```
+
+## 📁 프로젝트 구조
+````markdown
 project-root/
 ├── backend/
 │   ├── api/
@@ -80,3 +153,4 @@ project-root/
 ├── .gitignore
 ├── README.md
 └── pyproject.toml
+````

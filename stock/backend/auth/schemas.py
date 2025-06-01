@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, validator
 from typing import Optional
 from datetime import datetime
 
@@ -9,6 +9,31 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: Optional[str] = None
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if v is not None and len(v) < 6:
+            raise ValueError('비밀번호는 6자리 이상이어야 합니다')
+        return v
+    
+    @validator('nickname')
+    def validate_nickname(cls, v):
+        if len(v) < 2:
+            raise ValueError('닉네임은 2자리 이상이어야 합니다')
+        if len(v) > 20:
+            raise ValueError('닉네임은 20자리 이하여야 합니다')
+        return v
+
+class UserUpdate(BaseModel):
+    nickname: Optional[str] = None
+    password: Optional[str] = None
+    is_active: Optional[bool] = None
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if v is not None and len(v) < 6:
+            raise ValueError('비밀번호는 6자리 이상이어야 합니다')
+        return v
 
 class User(UserBase):
     id: int
@@ -26,3 +51,13 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class EmailCheck(BaseModel):
+    email: EmailStr
+    available: bool
+    message: str
+
+class NicknameCheck(BaseModel):
+    nickname: str
+    available: bool
+    message: str
