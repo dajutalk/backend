@@ -160,3 +160,7 @@ WebSocket 메시지 너무 자주 오면 throttling 적용
 반응형 디자인
 터치 친화적 UI
 스와이프 제스처 지원
+
+# 프론트엔드 개발자를 위한 통합 API 가이드
+
+## 🔗 Base URL
