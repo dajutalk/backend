@@ -41,6 +41,7 @@ def comprehensive_db_test():
         
     except Exception as e:
         logger.error(f"❌ 데이터베이스 테스트 실패: {e}")
+        print("⚠️ MySQL 서버가 실행 중인지, 포트/주소/비밀번호가 맞는지 확인하세요.")
         import traceback
         logger.error(f"❌ 상세 오류:\n{traceback.format_exc()}")
         return False
