@@ -17,32 +17,38 @@ router = APIRouter()
 KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID")
 REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI", "http://localhost:8000/auth/kakao/callback")
 
-@router.post("/login", response_model=schemas.Token)
-def login_or_signup(
+@router.post("/signup", response_model=schemas.Token)
+def signup(
     response: Response,
     email: str = Form(...),
     password: str = Form(...),
     nickname: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    """일반 로그인 또는 자동 회원가입"""
-    user = crud.get_user_by_email(db, email)
-
-    if user:
-        # 기존 사용자 로그인
-        if not user.password or not crud.verify_password(password, user.password):
-            raise HTTPException(status_code=400, detail="잘못된 로그인 정보입니다")
-        logger.info(f"기존 사용자 로그인: {email}")
-    else:
-        # 새 사용자 회원가입 (자동으로 처리)
-        new_user = schemas.UserCreate(
-            email=email,
-            password=password,
-            nickname=nickname,
-            provider="local"
-        )
-        user = crud.create_user(db, new_user)
-        logger.info(f"새 사용자 회원가입: {email}")
+    """일반 회원가입"""
+    # 이메일 중복 확인
+    existing_user = crud.get_user_by_email(db, email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="이미 사용 중인 이메일입니다")
+    
+    # 비밀번호 강도 검증 (기본적인 검증)
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="비밀번호는 6자리 이상이어야 합니다")
+    
+    # 닉네임 중복 확인 (선택사항)
+    existing_nickname = crud.get_user_by_nickname(db, nickname)
+    if existing_nickname:
+        raise HTTPException(status_code=400, detail="이미 사용 중인 닉네임입니다")
+    
+    # 새 사용자 생성
+    new_user = schemas.UserCreate(
+        email=email,
+        password=password,
+        nickname=nickname,
+        provider="local"
+    )
+    user = crud.create_user(db, new_user)
+    logger.info(f"새 사용자 회원가입: {email}")
 
     # JWT 토큰 생성
     token = create_access_token(data={"sub": str(user.id)})
@@ -52,9 +58,47 @@ def login_or_signup(
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,  # 개발환경에서는 False
+        secure=False,
         samesite="lax",
-        max_age=86400  # 24시간
+        max_age=86400
+    )
+    
+    return {"access_token": token, "token_type": "bearer", "user_id": user.id, "nickname": user.nickname}
+
+@router.post("/login", response_model=schemas.Token)
+def login(
+    response: Response,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """일반 로그인 (회원가입 분리됨)"""
+    user = crud.get_user_by_email(db, email)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="등록되지 않은 이메일입니다")
+    
+    # 비밀번호 확인
+    if not user.password or not crud.verify_password(password, user.password):
+        raise HTTPException(status_code=400, detail="잘못된 비밀번호입니다")
+    
+    # 계정 활성화 확인
+    if not user.is_active:
+        raise HTTPException(status_code=400, detail="비활성화된 계정입니다")
+    
+    logger.info(f"사용자 로그인: {email}")
+
+    # JWT 토큰 생성
+    token = create_access_token(data={"sub": str(user.id)})
+
+    # 쿠키 설정
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400
     )
     
     return {"access_token": token, "token_type": "bearer", "user_id": user.id, "nickname": user.nickname}

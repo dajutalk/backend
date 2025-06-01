@@ -20,6 +20,10 @@ def get_user_by_email(db: Session, email: str):
     """이메일로 사용자 조회"""
     return db.query(models.User).filter(models.User.email == email).first()
 
+def get_user_by_nickname(db: Session, nickname: str):
+    """닉네임으로 사용자 조회"""
+    return db.query(models.User).filter(models.User.nickname == nickname).first()
+
 def create_user(db: Session, user: schemas.UserCreate):
     """새 사용자 생성"""
     hashed_password = None
@@ -35,4 +39,32 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+    return db_user
+
+def update_user(db: Session, user_id: int, user_update: schemas.UserUpdate):
+    """사용자 정보 업데이트"""
+    db_user = get_user(db, user_id)
+    if not db_user:
+        return None
+    
+    update_data = user_update.dict(exclude_unset=True)
+    
+    # 비밀번호 변경 시 해시화
+    if "password" in update_data and update_data["password"]:
+        update_data["password"] = get_password_hash(update_data["password"])
+    
+    for field, value in update_data.items():
+        setattr(db_user, field, value)
+    
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def deactivate_user(db: Session, user_id: int):
+    """사용자 비활성화"""
+    db_user = get_user(db, user_id)
+    if db_user:
+        db_user.is_active = False
+        db.commit()
+        db.refresh(db_user)
     return db_user
