@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 # 환경변수 로드
 load_dotenv()
 
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here")
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-here-change-in-production")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "30"))
+JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "1440"))
 
 def create_access_token(data: dict):
     """JWT 액세스 토큰 생성"""
@@ -20,6 +20,7 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    logger.info(f"토큰 생성 완료: 사용자 {data.get('sub', 'unknown')}")
     return encoded_jwt
 
 def verify_token(token: str):

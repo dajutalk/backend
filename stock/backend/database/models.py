@@ -1,6 +1,9 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Index, BigInteger
+from sqlalchemy import Column, Integer, String, Float, DateTime, Index, BigInteger, Boolean
 from sqlalchemy.sql import func
 from .connection import Base
+from passlib.context import CryptContext
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class StockQuote(Base):
     """주식 시세 모델"""
@@ -48,22 +51,41 @@ class CryptoQuote(Base):
     def __repr__(self):
         return f"<CryptoQuote(symbol='{self.symbol}', price={self.p}, time='{self.created_at}')>"
 
+class User(Base):
+    """사용자 모델"""
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    nickname = Column(String(100), nullable=False)
+    password = Column(String(255), nullable=True)  # 카카오 로그인은 비밀번호 없음
+    provider = Column(String(20), default="local")  # local, kakao 등
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    def verify_password(self, password: str) -> bool:
+        """비밀번호 검증"""
+        if not self.password:
+            return False
+        return pwd_context.verify(password, self.password)
+    
+    def set_password(self, password: str):
+        """비밀번호 해시화 후 저장"""
+        self.password = pwd_context.hash(password)
+
 class ChatMessage(Base):
-    """채팅 메시지 모델"""
+    """채팅 메시지 모델 (사용자 연동)"""
     __tablename__ = "chat_messages"
     
     id = Column(Integer, primary_key=True, index=True)
-    symbol = Column(String(20), nullable=False, index=True)  # 주식/암호화폐 심볼
-    user_id = Column(String(50), nullable=False)  # 사용자 ID
-    nickname = Column(String(100), nullable=False)  # 닉네임
-    message = Column(String(1000), nullable=False)  # 메시지 내용
+    symbol = Column(String(20), nullable=False, index=True)
+    user_id = Column(Integer, nullable=True)  # User.id 참조 (게스트는 NULL)
+    nickname = Column(String(100), nullable=False)
+    message = Column(String(1000), nullable=False)
     created_at = Column(DateTime, default=func.now(), index=True)
     
-    # 인덱스 설정
     __table_args__ = (
         Index('idx_symbol_created', 'symbol', 'created_at'),
         Index('idx_user_created', 'user_id', 'created_at'),
     )
-    
-    def __repr__(self):
-        return f"<ChatMessage(symbol='{self.symbol}', user='{self.nickname}', time='{self.created_at}')>"
