@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 
 class UserBase(BaseModel):
-    email: EmailStr
+    email: str
     nickname: str
     provider: Optional[str] = "local"
 
@@ -11,9 +11,11 @@ class UserCreate(UserBase):
     password: Optional[str] = None
     
     @validator('password')
-    def validate_password(cls, v):
-        if v is not None and len(v) < 6:
-            raise ValueError('비밀번호는 6자리 이상이어야 합니다')
+    def validate_password(cls, v, values):
+        # 로컬 회원가입인 경우만 비밀번호 필요
+        if values.get("provider") == "local":
+            if v is None or len(v) < 6:
+                raise ValueError('비밀번호는 6자리 이상이어야 합니다')
         return v
     
     @validator('nickname')
