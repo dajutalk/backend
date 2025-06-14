@@ -16,6 +16,22 @@ class TradeRequest(BaseModel):
     price: float
     quantity: int
 
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+
+    try:
+        user_id = extract_user_id(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="토큰 검증 실패")
+
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    return user
+
 @router.post("/start")
 def start_mock_investment(request: Request, db: Session = Depends(get_db)):
     token = request.cookies.get("access_token")
@@ -168,3 +184,66 @@ def get_user_holdings(request: Request, symbol: str = Query(None), db: Session =
     if symbol:
         return {"quantity": holdings.get(symbol, 0)}
     return {"holdings": dict(holdings)}
+
+@router.get("/holdings-summary")
+def get_holdings_summary(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    trades = db.query(TransactionHistory).filter(TransactionHistory.user_id == current_user.id).all()
+
+    holdings = {}
+    for trade in trades:
+        symbol = trade.symbol
+        quantity = trade.quantity
+        price = trade.total_price / quantity if quantity else 0
+
+        if symbol not in holdings:
+            holdings[symbol] = {
+                "quantity": 0,
+                "total_price": 0.0
+            }
+
+        if trade.trade_type == "BUY":
+            holdings[symbol]["quantity"] += quantity
+            holdings[symbol]["total_price"] += price * quantity
+        elif trade.trade_type == "SELL":
+            # 평균가 기준으로 총 금액 차감
+            current_qty = holdings[symbol]["quantity"]
+            if current_qty > 0:
+                avg_price = holdings[symbol]["total_price"] / current_qty
+                holdings[symbol]["quantity"] -= quantity
+                holdings[symbol]["total_price"] -= avg_price * quantity
+
+    result = []
+    for symbol, data in holdings.items():
+        qty = data["quantity"]
+        avg_price = data["total_price"] / qty if qty > 0 else 0
+        if qty > 0:
+            result.append({
+                "symbol": symbol,
+                "quantity": qty,
+                "average_price": round(avg_price, 2)
+            })
+
+    return {"holdings": result}
+
+@router.get("/trade-history")
+def get_trade_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    trades = db.query(TransactionHistory).filter(TransactionHistory.user_id == current_user.id).order_by(TransactionHistory.created_at.desc()).all()
+
+    result = [
+        {
+            "symbol": trade.symbol,
+            "type": trade.trade_type,
+            "price": round(trade.total_price / trade.quantity, 2) if trade.quantity else 0,
+            "quantity": trade.quantity,
+            "timestamp": trade.created_at
+        }
+        for trade in trades
+    ]
+
+    return {"trades": result}
