@@ -25,7 +25,7 @@ class MockBalance(Base):
     __tablename__ = "mock_balances"
 
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
-    balance = Column(BigInteger, nullable=False, default=10_000_000)
+    balance = Column(BigInteger, nullable=False, default=10_000)
 
     user = relationship("User", backref="mock_balance")
 
