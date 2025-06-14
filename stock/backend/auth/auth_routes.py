@@ -26,45 +26,59 @@ def signup(
     db: Session = Depends(get_db),
 ):
     """일반 회원가입"""
-    # 이메일 중복 확인
-    existing_user = crud.get_user_by_email(db, email)
-    if existing_user:
-        raise HTTPException(status_code=400, detail="이미 사용 중인 이메일입니다")
-    
-    # 비밀번호 강도 검증 (기본적인 검증)
-    if len(password) < 6:
-        raise HTTPException(status_code=400, detail="비밀번호는 6자리 이상이어야 합니다")
-    
-    # 닉네임 중복 확인 (선택사항)
-    existing_nickname = crud.get_user_by_nickname(db, nickname)
-    if existing_nickname:
-        raise HTTPException(status_code=400, detail="이미 사용 중인 닉네임입니다")
-    
-    # 새 사용자 생성
-    new_user = schemas.UserCreate(
-        email=email,
-        password=password,
-        nickname=nickname,
-        provider="local"
-    )
-    user = crud.create_user(db, new_user)
-    logger.info(f"새 사용자 회원가입: {email}")
+    try:
+        # 이메일 중복 확인
+        existing_user = crud.get_user_by_email(db, email)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="이미 사용 중인 이메일입니다")
 
-    # JWT 토큰 생성
-    token = create_access_token(data={"sub": str(user.id)})
+        # 비밀번호 강도 검증 (기본적인 검증)
+        if len(password) < 6:
+            raise HTTPException(status_code=400, detail="비밀번호는 6자리 이상이어야 합니다")
 
-    # 쿠키 설정
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        secure=False,
-        samesite="lax",
-        max_age=86400
-    )
+        # 닉네임 중복 확인
+        existing_nickname = crud.get_user_by_nickname(db, nickname)
+        if existing_nickname:
+            raise HTTPException(status_code=400, detail="이미 사용 중인 닉네임입니다")
+
+        # 새 사용자 생성
+        new_user = schemas.UserCreate(
+            email=email,
+            password=password,
+            nickname=nickname,
+            provider="local"
+        )
+        user = crud.create_user(db, new_user)
+        logger.info(f"새 사용자 회원가입: {email}")
+
+        # JWT 토큰 생성
+        token = create_access_token(data={"sub": str(user.id)})
+
+        # 쿠키 설정
+        response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=86400
+        )
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user_id": user.id,
+            "nickname": user.nickname
+        }
+
+    except HTTPException as http_exc:
+        raise http_exc
+
+    except Exception as e:
+        logger.error("❌ 회원가입 중 서버 오류 발생:")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="회원가입 중 서버 오류가 발생했습니다.")
     
-    return {"access_token": token, "token_type": "bearer", "user_id": user.id, "nickname": user.nickname}
-
 @router.post("/login", response_model=schemas.Token)
 def login(
     response: Response,
@@ -134,6 +148,7 @@ def kakao_login(
                 password=None,
                 nickname=nickname,
                 provider="kakao"
+                
             )
             user = crud.create_user(db, new_user)
             logger.info(f"카카오 신규 사용자: {nickname}")
@@ -167,30 +182,44 @@ def kakao_login_callback(
     """카카오 로그인 GET 콜백 (리다이렉트용)"""
     code = request.query_params.get("code")
     if not code:
+        logger.warning("🔴 code 없음")
         return RedirectResponse(url="http://localhost:3000?error=no_code")
 
     try:
-        # 카카오 로그인 처리
+        logger.info("🔵 code 수신 완료, 토큰 요청 시작")
         kakao_access_token = get_kakao_access_token(code)
+        logger.info(f"🟢 Kakao Access Token: {kakao_access_token}")
+
         user_info = get_kakao_user_info(kakao_access_token)
-        
+        logger.info(f"🟢 Kakao User Info: {user_info}")
+
         kakao_id = str(user_info["id"])
         nickname = user_info["properties"]["nickname"]
         generated_email = f"kakao_{kakao_id}@kakao.local"
 
+        logger.info(f"🟡 사용자 이메일 생성: {generated_email}")
+
         user = crud.get_user_by_email(db, generated_email)
         if not user:
+            logger.info(f"🟠 DB에 사용자 없음. 생성 시도.")
             new_user = schemas.UserCreate(
                 email=generated_email,
                 password=None,
                 nickname=nickname,
                 provider="kakao"
             )
-            user = crud.create_user(db, new_user)
+            try:
+                user = crud.create_user(db, new_user)
+                logger.info(f"🟢 사용자 생성 완료: {user.email}")
+            except Exception as e:
+                logger.error("❌ 사용자 생성 중 오류 발생")
+                logger.error(traceback.format_exc())
+                return RedirectResponse(url="http://localhost:3000?error=creation_failed")
 
         # JWT 토큰 생성
         token = create_access_token(data={"sub": str(user.id)})
-        
+        logger.info(f"✅ JWT 생성 완료")
+
         # 프론트엔드로 리다이렉트
         response = RedirectResponse(url="http://localhost:3000?login=success")
         response.set_cookie(
@@ -203,9 +232,10 @@ def kakao_login_callback(
         )
         
         return response
-        
+
     except Exception as e:
-        logger.error(f"카카오 콜백 처리 오류: {e}")
+        logger.error(f"❌ 카카오 콜백 처리 오류: {e}")
+        logger.error(traceback.format_exc())
         return RedirectResponse(url="http://localhost:3000?error=kakao_failed")
 
 @router.get("/me", response_model=schemas.User)
@@ -260,6 +290,7 @@ async def check_email_availability(
         }
     except Exception as e:
         logger.error(f"이메일 확인 오류: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="이메일 확인 중 오류가 발생했습니다")
 
 @router.post("/check-nickname")
