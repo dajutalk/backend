@@ -33,11 +33,11 @@ class StockQuoteService:
                 db.commit()
                 db.refresh(stock_quote)
                 
-                logger.info(f"💾 주식 시세 저장 완료: {quote_data.get('symbol')} (ID: {stock_quote.id})")
+                logger.info(f" 주식 시세 저장 완료: {quote_data.get('symbol')} (ID: {stock_quote.id})")
                 return True
                 
         except Exception as e:
-            logger.error(f"❌ 주식 시세 저장 실패: {quote_data.get('symbol')}, 오류: {e}")
+            logger.error(f" 주식 시세 저장 실패: {quote_data.get('symbol')}, 오류: {e}")
             return False
     
     def get_latest_quote(self, symbol: str) -> Optional[StockQuote]:
@@ -51,7 +51,7 @@ class StockQuoteService:
                 return quote
                 
         except Exception as e:
-            logger.error(f"❌ 최신 시세 조회 실패: {symbol}, 오류: {e}")
+            logger.error(f" 최신 시세 조회 실패: {symbol}, 오류: {e}")
             return None
     
     def get_quote_history(self, symbol: str, hours: int = 24) -> List[StockQuote]:
@@ -67,7 +67,7 @@ class StockQuoteService:
                 return quotes
                 
         except Exception as e:
-            logger.error(f"❌ 시세 이력 조회 실패: {symbol}, 오류: {e}")
+            logger.error(f" 시세 이력 조회 실패: {symbol}, 오류: {e}")
             return []
     
     def get_all_symbols(self) -> List[str]:
@@ -80,7 +80,7 @@ class StockQuoteService:
                 return [symbol[0] for symbol in symbols]
                 
         except Exception as e:
-            logger.error(f"❌ 심볼 목록 조회 실패: {e}")
+            logger.error(f" 심볼 목록 조회 실패: {e}")
             return []
     
     def get_quote_statistics(self, symbol: str) -> Dict[str, Any]:
@@ -110,7 +110,7 @@ class StockQuoteService:
                 }
                 
         except Exception as e:
-            logger.error(f"❌ 통계 조회 실패: {symbol}, 오류: {e}")
+            logger.error(f" 통계 조회 실패: {symbol}, 오류: {e}")
             return {}
     
     def cleanup_old_data(self, days: int = 7) -> int:
@@ -132,11 +132,11 @@ class StockQuoteService:
                     .delete()
                 
                 db.commit()
-                logger.info(f"🧹 {count}개의 오래된 시세 데이터 정리 완료")
+                logger.info(f" {count}개의 오래된 시세 데이터 정리 완료")
                 return count
                 
         except Exception as e:
-            logger.error(f"❌ 데이터 정리 실패: {e}")
+            logger.error(f" 데이터 정리 실패: {e}")
             return 0
 
 # 전역 서비스 인스턴스

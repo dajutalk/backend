@@ -53,27 +53,27 @@ def create_db_and_tables():
         with temp_engine.begin() as connection:  # autocommit을 위해 begin() 사용
             # 데이터베이스 생성 (존재하지 않는 경우)
             connection.execute(text(f"CREATE DATABASE IF NOT EXISTS {DB_NAME}"))
-            logger.info(f"✅ 데이터베이스 '{DB_NAME}' 확인/생성 완료")
+            logger.info(f" 데이터베이스 '{DB_NAME}' 확인/생성 완료")
         
         temp_engine.dispose()
         
         # 모델들을 import해서 테이블 정의를 로드
         try:
             from stock.backend.models import StockQuote, CryptoQuote
-            logger.info("✅ 모델 import 성공")
+            logger.info(" 모델 import 성공")
         except ImportError as e:
-            logger.warning(f"⚠️ 모델 import 실패: {e}")
+            logger.warning(f" 모델 import 실패: {e}")
         
         # 모든 테이블 생성
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ 모든 테이블 생성 완료")
+        logger.info(" 모든 테이블 생성 완료")
         
         return True
         
     except Exception as e:
-        logger.error(f"❌ 데이터베이스/테이블 생성 실패: {e}")
+        logger.error(f" 데이터베이스/테이블 생성 실패: {e}")
         import traceback
-        logger.error(f"❌ 상세 오류:\n{traceback.format_exc()}")
+        logger.error(f" 상세 오류:\n{traceback.format_exc()}")
         return False
 
 def test_connection():
@@ -81,10 +81,10 @@ def test_connection():
     try:
         with engine.connect() as connection:
             result = connection.execute(text("SELECT 1"))
-            logger.info("✅ 데이터베이스 연결 테스트 성공")
+            logger.info(" 데이터베이스 연결 테스트 성공")
             return True
     except Exception as e:
-        logger.error(f"❌ 데이터베이스 연결 실패: {e}")
+        logger.error(f" 데이터베이스 연결 실패: {e}")
         import traceback
-        logger.error(f"❌ 상세 오류:\n{traceback.format_exc()}")
+        logger.error(f" 상세 오류:\n{traceback.format_exc()}")
         return False

@@ -19,13 +19,13 @@ if not env_path.exists():
             env_path = alt_path
             break
 
-print(f"🔍 .env 파일 경로: {env_path}")
-print(f"📁 .env 파일 존재: {env_path.exists()}")
+print(f" .env 파일 경로: {env_path}")
+print(f" .env 파일 존재: {env_path.exists()}")
 
 load_dotenv(dotenv_path=env_path, override=True)
 
 # 환경변수 디버깅
-print(f"🔍 환경변수 확인:")
+print(f" 환경변수 확인:")
 print(f"DB_USER: {os.getenv('DB_USER', 'NOT_SET')}")
 print(f"DB_PASSWORD: {os.getenv('DB_PASSWORD', 'NOT_SET')}")
 print(f"DB_HOST: {os.getenv('DB_HOST', 'NOT_SET')}")
@@ -45,7 +45,7 @@ class DatabaseSettings:
         self.port = os.getenv("DB_PORT", "3306")
         self.name = os.getenv("DB_NAME", "stock_db")
         
-        print(f"🔧 데이터베이스 설정:")
+        print(f" 데이터베이스 설정:")
         print(f"   사용자: {self.user}")
         print(f"   호스트: {self.host}:{self.port}")
         print(f"   데이터베이스: {self.name}")
@@ -53,7 +53,7 @@ class DatabaseSettings:
     @property
     def url(self) -> str:
         url = f"mysql+pymysql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}?charset=utf8mb4"
-        print(f"🔗 DB URL: mysql+pymysql://{self.user}:***@{self.host}:{self.port}/{self.name}?charset=utf8mb4")
+        print(f" DB URL: mysql+pymysql://{self.user}:***@{self.host}:{self.port}/{self.name}?charset=utf8mb4")
         return url
     
     @property
@@ -68,10 +68,10 @@ class APISettings:
         
         # API 키 검증
         if not self.finnhub_api_key or self.finnhub_api_key == "":
-            print("⚠️ 경고: FINNHUB_API_KEY가 설정되지 않았습니다!")
+            print(" 경고: FINNHUB_API_KEY가 설정되지 않았습니다!")
             print("   .env 파일에 FINNHUB_API_KEY=your_api_key를 추가하세요")
         else:
-            print(f"✅ Finnhub API 키 로드 완료: {self.finnhub_api_key[:10]}...")
+            print(f" Finnhub API 키 로드 완료: {self.finnhub_api_key[:10]}...")
 
 class AuthSettings:
     """인증 설정"""
@@ -87,9 +87,9 @@ class AuthSettings:
         if not self.jwt_secret_key:
             raise ValueError("JWT_SECRET_KEY는 필수 환경변수입니다. .env 파일에 설정하세요.")
         
-        print(f"🔐 인증 설정:")
+        print(f" 인증 설정:")
         print(f"   JWT 만료시간: {self.jwt_expire_minutes}분")
-        print(f"   카카오 설정: {'✅' if self.kakao_client_id else '❌'}")
+        print(f"   카카오 설정: {'' if self.kakao_client_id else '❌'}")
 
 class AppSettings:
     """애플리케이션 설정"""
