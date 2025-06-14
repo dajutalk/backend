@@ -41,7 +41,7 @@ class ChatRoomManager:
             "joined_at": datetime.now()
         }
         
-        logger.info(f"💬 사용자 '{user_info.get('nickname')}' {symbol} 채팅방 입장")
+        logger.info(f" 사용자 '{user_info.get('nickname')}' {symbol} 채팅방 입장")
         
         # 입장 알림 브로드캐스트
         await self.broadcast_to_room(symbol, {
@@ -72,7 +72,7 @@ class ChatRoomManager:
             # 사용자 연결 정보 제거
             del self.user_connections[websocket]
             
-            logger.info(f"💬 사용자 '{nickname}' {symbol} 채팅방 퇴장")
+            logger.info(f" 사용자 '{nickname}' {symbol} 채팅방 퇴장")
             
             # 퇴장 알림 브로드캐스트 (비동기로 실행)
             if symbol in self.chat_rooms:
@@ -201,7 +201,7 @@ async def save_chat_message(symbol: str, user_info: Dict, message: str):
     try:
         # 여기에 DB 저장 로직 추가
         # 예: ChatMessage 모델 생성 후 저장
-        logger.info(f"💾 채팅 저장: {symbol} - {user_info['nickname']}: {message}")
+        logger.info(f" 채팅 저장: {symbol} - {user_info['nickname']}: {message}")
     except Exception as e:
         logger.error(f"채팅 메시지 저장 실패: {e}")
 

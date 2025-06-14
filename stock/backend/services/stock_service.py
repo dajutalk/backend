@@ -147,11 +147,11 @@ def get_cached_stock_data(symbol):
             cache_age = current_time - cached_at
             cached_data['_cache_age'] = cache_age
             cached_data['_data_source'] = 'cache'  # 명시적으로 캐시에서 가져옴을 표시
-            logger.info(f"📋 캐시에서 데이터 반환: {symbol} (캐시 경과: {cache_age:.1f}초)")
+            logger.info(f" 캐시에서 데이터 반환: {symbol} (캐시 경과: {cache_age:.1f}초)")
             return cached_data
     
     # 캐시에 없으면 등록하고 업데이트
-    logger.info(f"🌐 캐시에 없음, 새로 API 호출: {symbol}")
+    logger.info(f" 캐시에 없음, 새로 API 호출: {symbol}")
     register_symbol(symbol)
     
     # 업데이트 후 다시 확인
@@ -160,7 +160,7 @@ def get_cached_stock_data(symbol):
             cached_data = stock_cache[symbol].copy()
             cached_data['_cache_age'] = 0  # 방금 업데이트됨
             cached_data['_data_source'] = 'api'  # API에서 새로 가져옴을 표시
-            logger.info(f"🆕 새로 업데이트된 데이터 반환: {symbol}")
+            logger.info(f" 새로 업데이트된 데이터 반환: {symbol}")
             return cached_data
     
     return None
@@ -264,14 +264,14 @@ def crypto_periodic_update_worker():
     """암호화폐 데이터를 1분마다 업데이트하는 워커 스레드"""
     global crypto_thread_running
     
-    logger.info(f"🚀 암호화폐 자동 수집 시작 - {len(TOP_10_CRYPTOS)}개 코인")
+    logger.info(f" 암호화폐 자동 수집 시작 - {len(TOP_10_CRYPTOS)}개 코인")
     
     while crypto_thread_running:
         try:
             start_time = time.time()
             success_count = 0
             
-            logger.info(f"📊 암호화폐 데이터 수집 시작 - {len(TOP_10_CRYPTOS)}개 처리")
+            logger.info(f" 암호화폐 데이터 수집 시작 - {len(TOP_10_CRYPTOS)}개 처리")
             
             # 모든 암호화폐 업데이트
             for symbol in TOP_10_CRYPTOS:
@@ -281,7 +281,7 @@ def crypto_periodic_update_worker():
                 if update_crypto_data(symbol):
                     success_count += 1
                     
-                    # 📊 암호화폐 데이터 DB 저장 프로세스 설명:
+                    #  암호화폐 데이터 DB 저장 프로세스 설명:
                     # 1. API에서 받은 데이터를 캐시에 저장 후
                     # 2. 캐시에서 데이터를 가져와서 DB 저장용 형식으로 변환
                     # 3. crypto_service를 통해 crypto_quotes 테이블에 저장
@@ -291,7 +291,7 @@ def crypto_periodic_update_worker():
                         from stock.backend.services.crypto_service import crypto_service
                         crypto_data_obj = crypto_cache.get(symbol)
                         
-                        logger.info(f"🔍 캐시에서 가져온 데이터: {symbol} -> {crypto_data_obj}")
+                        logger.info(f" 캐시에서 가져온 데이터: {symbol} -> {crypto_data_obj}")
                         
                         if crypto_data_obj:
                             # CryptoQuote 형식으로 변환하여 저장
@@ -303,57 +303,57 @@ def crypto_periodic_update_worker():
                                 "t": crypto_data_obj.get('t', 0)       # 타임스탬프 (밀리초)
                             }
                             
-                            # 🔍 타임스탬프 값 검증 및 로깅
+                            #  타임스탬프 값 검증 및 로깅
                             timestamp_value = crypto_quote_data.get('t', 0)
-                            logger.info(f"🕐 {symbol} 타임스탬프 값: {timestamp_value} ({type(timestamp_value)})")
+                            logger.info(f" {symbol} 타임스탬프 값: {timestamp_value} ({type(timestamp_value)})")
                             
                             # 타임스탬프 범위 검증 (밀리초 단위)
                             if timestamp_value <= 0:
-                                logger.error(f"❌ {symbol} 잘못된 타임스탬프: {timestamp_value}")
+                                logger.error(f" {symbol} 잘못된 타임스탬프: {timestamp_value}")
                                 continue
                             
                             # BIGINT 범위 검증 (2^63-1 = 9223372036854775807)
                             if timestamp_value > 9223372036854775807:
-                                logger.error(f"❌ {symbol} 타임스탬프 범위 초과: {timestamp_value}")
+                                logger.error(f" {symbol} 타임스탬프 범위 초과: {timestamp_value}")
                                 continue
                             
-                            logger.info(f"🔄 DB 저장용 데이터 변환: {symbol} -> {crypto_quote_data}")
+                            logger.info(f" DB 저장용 데이터 변환: {symbol} -> {crypto_quote_data}")
                             
                             if crypto_service.save_crypto_quote(crypto_quote_data):
-                                logger.debug(f"💾 {symbol} 암호화폐 데이터 DB 저장 완료")
+                                logger.debug(f" {symbol} 암호화폐 데이터 DB 저장 완료")
                             else:
-                                logger.error(f"❌ {symbol} 암호화폐 데이터 DB 저장 실패")
-                                # 🔍 실패 원인 분석을 위한 추가 로깅
-                                logger.error(f"❌ 실패한 데이터: {crypto_quote_data}")
-                                logger.error(f"❌ 캐시 원본 데이터: {crypto_data_obj}")
+                                logger.error(f" {symbol} 암호화폐 데이터 DB 저장 실패")
+                                #  실패 원인 분석을 위한 추가 로깅
+                                logger.error(f" 실패한 데이터: {crypto_quote_data}")
+                                logger.error(f" 캐시 원본 데이터: {crypto_data_obj}")
                         else:
-                            logger.error(f"❌ {symbol} 캐시에서 데이터를 찾을 수 없음")
+                            logger.error(f" {symbol} 캐시에서 데이터를 찾을 수 없음")
                             
                     except Exception as e:
-                        logger.error(f"❌ {symbol} DB 저장 중 오류: {e}")
+                        logger.error(f" {symbol} DB 저장 중 오류: {e}")
                         # 스택 트레이스 출력
                         import traceback
-                        logger.error(f"❌ 스택 트레이스:\n{traceback.format_exc()}")
+                        logger.error(f" 스택 트레이스:\n{traceback.format_exc()}")
                 
                 # API 요청 제한을 위한 지연
                 time.sleep(1.2)
             
             elapsed_time = time.time() - start_time
-            logger.info(f"📈 암호화폐 수집 완료: {success_count}/{len(TOP_10_CRYPTOS)} 성공 (소요: {elapsed_time:.1f}초)")
+            logger.info(f" 암호화폐 수집 완료: {success_count}/{len(TOP_10_CRYPTOS)} 성공 (소요: {elapsed_time:.1f}초)")
             
             # 다음 실행까지 대기 (1분 - 처리 시간)
             remaining_time = 60 - elapsed_time
             if remaining_time > 0:
-                logger.info(f"⏱️ 다음 암호화폐 수집까지 {remaining_time:.1f}초 대기...")
+                logger.info(f" 다음 암호화폐 수집까지 {remaining_time:.1f}초 대기...")
                 time.sleep(remaining_time)
             else:
-                logger.warning(f"⚠️ 암호화폐 처리 시간이 1분 초과: {elapsed_time:.1f}초")
+                logger.warning(f" 암호화폐 처리 시간이 1분 초과: {elapsed_time:.1f}초")
             
         except Exception as e:
-            logger.error(f"❌ 암호화폐 수집 루프 오류: {e}")
+            logger.error(f" 암호화폐 수집 루프 오류: {e}")
             time.sleep(10)
     
-    logger.info("🛑 암호화폐 자동 수집 스레드 종료")
+    logger.info(" 암호화폐 자동 수집 스레드 종료")
 
 def start_crypto_collection():
     """암호화폐 자동 수집 시작"""
@@ -364,24 +364,24 @@ def start_crypto_collection():
         return
     
     # 초기 데이터 수집
-    logger.info("🚀 암호화폐 초기 데이터 수집 시작")
+    logger.info(" 암호화폐 초기 데이터 수집 시작")
     for symbol in TOP_10_CRYPTOS:
         if update_crypto_data(symbol):
-            logger.info(f"✅ {symbol} 초기 데이터 수집 완료")
+            logger.info(f" {symbol} 초기 데이터 수집 완료")
         else:
-            logger.error(f"❌ {symbol} 초기 데이터 수집 실패")
+            logger.error(f" {symbol} 초기 데이터 수집 실패")
         time.sleep(1.2)
     
     crypto_thread_running = True
     crypto_thread = threading.Thread(target=crypto_periodic_update_worker, daemon=True)
     crypto_thread.start()
-    logger.info("🚀 암호화폐 자동 수집 스레드 시작")
+    logger.info(" 암호화폐 자동 수집 스레드 시작")
 
 def stop_crypto_collection():
     """암호화폐 자동 수집 중지"""
     global crypto_thread_running
     crypto_thread_running = False
-    logger.info("⏹️ 암호화폐 자동 수집 중지됨")
+    logger.info(" 암호화폐 자동 수집 중지됨")
 
 def get_cached_crypto_data(symbol):
     """캐시된 암호화폐 데이터 조회"""
@@ -396,18 +396,18 @@ def get_cached_crypto_data(symbol):
             cached_data['_cache_age'] = cache_age
             cached_data['_data_source'] = 'cache'
             
-            logger.info(f"📋 암호화폐 캐시 데이터 반환: {symbol} (경과: {cache_age:.1f}초)")
+            logger.info(f" 암호화폐 캐시 데이터 반환: {symbol} (경과: {cache_age:.1f}초)")
             return cached_data
     
     # 캐시에 없으면 즉시 업데이트
-    logger.info(f"🌐 암호화폐 캐시 없음, 새로 API 호출: {symbol}")
+    logger.info(f" 암호화폐 캐시 없음, 새로 API 호출: {symbol}")
     if update_crypto_data(symbol):
         with cache_lock:
             if symbol in crypto_cache:
                 cached_data = crypto_cache[symbol].copy()
                 cached_data['_cache_age'] = 0
                 cached_data['_data_source'] = 'api'
-                logger.info(f"🆕 새 암호화폐 데이터 반환: {symbol}")
+                logger.info(f" 새 암호화폐 데이터 반환: {symbol}")
                 return cached_data
     
     return None

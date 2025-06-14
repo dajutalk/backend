@@ -176,17 +176,17 @@ async def get_stock_quote_endpoint(symbol: str = Query(...), save_to_db: bool = 
             "cache_age": cache_age       # 캐시 경과 시간 (초)
         }
         
-        # 📊 조건부 DB 저장
+        #  조건부 DB 저장
         if save_to_db and final_source == 'api':
             saved = quote_service.save_stock_quote(response_data)
-            logger.info(f"💾 DB 저장: {symbol} {'성공' if saved else '실패'}")
+            logger.info(f" DB 저장: {symbol} {'성공' if saved else '실패'}")
         
         return response_data
     else:
-        logger.error(f"❌ 데이터 없음: {symbol}")
+        logger.error(f" 데이터 없음: {symbol}")
         raise HTTPException(status_code=404, detail=f"심볼 '{symbol}'의 데이터를 찾을 수 없습니다")
 
-# 📊 새로운 API 엔드포인트 추가
+#  새로운 API 엔드포인트 추가
 @rest_router.get("/history/{symbol}")
 async def get_stock_history(symbol: str, hours: int = Query(default=24, description="조회할 시간 범위 (시간 단위)")):
     """주식 시세 이력 조회"""

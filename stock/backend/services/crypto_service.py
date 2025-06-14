@@ -16,8 +16,8 @@ class CryptoQuoteService:
     def save_crypto_quote(self, crypto_data: Dict[str, Any]) -> bool:
         """암호화폐 시세 데이터를 데이터베이스에 저장"""
         try:
-            # 🔍 입력 데이터 검증 및 로깅
-            logger.info(f"💾 암호화폐 저장 시도: {crypto_data}")
+            #  입력 데이터 검증 및 로깅
+            logger.info(f" 암호화폐 저장 시도: {crypto_data}")
             
             # 필수 필드 검증
             symbol = crypto_data.get('symbol', '')
@@ -27,22 +27,22 @@ class CryptoQuoteService:
             t = crypto_data.get('t', 0)
             
             if not symbol:
-                logger.error(f"❌ 필수 필드 누락: symbol이 비어있음")
+                logger.error(f" 필수 필드 누락: symbol이 비어있음")
                 return False
             
             if not s:
-                logger.error(f"❌ 필수 필드 누락: s(전체 심볼)이 비어있음")
+                logger.error(f" 필수 필드 누락: s(전체 심볼)이 비어있음")
                 return False
             
             if not p or p == '0':
-                logger.error(f"❌ 유효하지 않은 가격: p={p}")
+                logger.error(f" 유효하지 않은 가격: p={p}")
                 return False
             
             if not t or t == 0:
-                logger.error(f"❌ 유효하지 않은 타임스탬프: t={t}")
+                logger.error(f" 유효하지 않은 타임스탬프: t={t}")
                 return False
             
-            logger.info(f"✅ 데이터 검증 통과: {symbol} - 가격: {p}, 타임스탬프: {t}")
+            logger.info(f" 데이터 검증 통과: {symbol} - 가격: {p}, 타임스탬프: {t}")
             
             with SessionLocal() as db:
                 # CryptoQuote 객체 생성
@@ -54,28 +54,28 @@ class CryptoQuoteService:
                     t=int(t)                                  # 타임스탬프 (밀리초)
                 )
                 
-                logger.info(f"🔄 CryptoQuote 객체 생성 완료: {symbol}")
+                logger.info(f" CryptoQuote 객체 생성 완료: {symbol}")
                 
                 db.add(crypto_quote)
-                logger.info(f"🔄 세션에 추가 완료: {symbol}")
+                logger.info(f" 세션에 추가 완료: {symbol}")
                 
                 db.commit()
-                logger.info(f"🔄 커밋 완료: {symbol}")
+                logger.info(f" 커밋 완료: {symbol}")
                 
                 db.refresh(crypto_quote)
-                logger.info(f"🔄 새로고침 완료: {symbol}, ID: {crypto_quote.id}")
+                logger.info(f" 새로고침 완료: {symbol}, ID: {crypto_quote.id}")
                 
-                logger.info(f"💾 암호화폐 시세 저장 완료: {symbol} (ID: {crypto_quote.id})")
+                logger.info(f" 암호화폐 시세 저장 완료: {symbol} (ID: {crypto_quote.id})")
                 return True
                 
         except Exception as e:
-            logger.error(f"❌ 암호화폐 시세 저장 실패: {crypto_data.get('symbol', 'UNKNOWN')}")
-            logger.error(f"❌ 상세 오류: {str(e)}")
-            logger.error(f"❌ 오류 타입: {type(e).__name__}")
+            logger.error(f" 암호화폐 시세 저장 실패: {crypto_data.get('symbol', 'UNKNOWN')}")
+            logger.error(f" 상세 오류: {str(e)}")
+            logger.error(f" 오류 타입: {type(e).__name__}")
             
             # 스택 트레이스 출력
             import traceback
-            logger.error(f"❌ 스택 트레이스:\n{traceback.format_exc()}")
+            logger.error(f" 스택 트레이스:\n{traceback.format_exc()}")
             
             return False
     
@@ -90,7 +90,7 @@ class CryptoQuoteService:
                 return quote
                 
         except Exception as e:
-            logger.error(f"❌ 최신 암호화폐 시세 조회 실패: {symbol}, 오류: {e}")
+            logger.error(f" 최신 암호화폐 시세 조회 실패: {symbol}, 오류: {e}")
             return None
     
     def get_crypto_quote_history(self, symbol: str, hours: int = 24) -> List[CryptoQuote]:
@@ -106,7 +106,7 @@ class CryptoQuoteService:
                 return quotes
                 
         except Exception as e:
-            logger.error(f"❌ 암호화폐 시세 이력 조회 실패: {symbol}, 오류: {e}")
+            logger.error(f" 암호화폐 시세 이력 조회 실패: {symbol}, 오류: {e}")
             return []
     
     def get_all_crypto_symbols(self) -> List[str]:
@@ -152,7 +152,7 @@ class CryptoQuoteService:
                 }
                 
         except Exception as e:
-            logger.error(f"❌ 암호화폐 통계 조회 실패: {symbol}, 오류: {e}")
+            logger.error(f" 암호화폐 통계 조회 실패: {symbol}, 오류: {e}")
             return {}
     
     def cleanup_old_crypto_data(self, days: int = 7) -> int:
@@ -174,11 +174,11 @@ class CryptoQuoteService:
                     .delete()
                 
                 db.commit()
-                logger.info(f"🧹 {count}개의 오래된 암호화폐 시세 데이터 정리 완료")
+                logger.info(f" {count}개의 오래된 암호화폐 시세 데이터 정리 완료")
                 return count
                 
         except Exception as e:
-            logger.error(f"❌ 암호화폐 데이터 정리 실패: {e}")
+            logger.error(f" 암호화폐 데이터 정리 실패: {e}")
             return 0
 
 # 전역 서비스 인스턴스

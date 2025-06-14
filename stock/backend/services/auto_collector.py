@@ -39,10 +39,10 @@ class StockAutoCollector:
         self.is_running = True
         self.collector_thread = threading.Thread(target=self._run_collector, daemon=True)
         self.collector_thread.start()
-        
-        logger.info(f"🚀 주식 데이터 자동 수집기 시작")
-        logger.info(f"🎯 API 엔드포인트: {self.base_url}")
-        logger.info(f"📋 모니터링 심볼: {len(MOST_ACTIVE_STOCKS)}개")
+    
+        logger.info(f" 주식 데이터 자동 수집기 시작")
+        logger.info(f" API 엔드포인트: {self.base_url}")
+        logger.info(f" 모니터링 심볼: {len(MOST_ACTIVE_STOCKS)}개")
     
     def stop_collector(self):
         """자동 수집기 중지"""
@@ -50,11 +50,11 @@ class StockAutoCollector:
         if self.collector_thread and self.collector_thread.is_alive():
             self.collector_thread.join(timeout=5)
         
-        logger.info(f"⏹️ 자동 수집기 중지됨 (성공: {self.success_count}, 오류: {self.error_count})")
+        logger.info(f" 자동 수집기 중지됨 (성공: {self.success_count}, 오류: {self.error_count})")
     
     def _run_collector(self):
         """수집기 메인 루프"""
-        logger.info("⏰ 자동 수집기 루프 시작 - 1분마다 데이터 수집")
+        logger.info(" 자동 수집기 루프 시작 - 1분마다 데이터 수집")
         
         while self.is_running:
             try:
@@ -72,27 +72,27 @@ class StockAutoCollector:
                 elapsed_time = time.time() - start_time
                 
                 logger.info(
-                    f"📈 수집 라운드 완료: 성공 {self.success_count}, 오류 {self.error_count} "
+                    f" 수집 라운드 완료: 성공 {self.success_count}, 오류 {self.error_count} "
                     f"(소요시간: {elapsed_time:.1f}초)"
                 )
                 
                 # 다음 실행까지 대기 (1분 - 처리 시간)
                 remaining_time = 60
                 if remaining_time > 0:
-                    logger.info(f"⏱️ 다음 수집까지 {remaining_time:.1f}초 대기...")
+                    logger.info(f" 다음 수집까지 {remaining_time:.1f}초 대기...")
                     time.sleep(remaining_time)
                 else:
                     logger.warning(f"⚠️ 처리 시간이 1분을 초과했습니다 ({elapsed_time:.1f}초)")
                 
             except Exception as e:
-                logger.error(f"❌ 수집기 루프 오류: {e}")
+                logger.error(f" 수집기 루프 오류: {e}")
                 time.sleep(10)  # 오류 시 10초 대기 후 재시도
         
-        logger.info("🛑 자동 수집기 루프 종료")
+        logger.info(" 자동 수집기 루프 종료")
     
     async def _collect_all_stocks(self):
         """모든 주식 데이터 비동기 수집"""
-        logger.info(f"📊 데이터 수집 시작 - {len(MOST_ACTIVE_STOCKS)}개 심볼 처리")
+        logger.info(f" 데이터 수집 시작 - {len(MOST_ACTIVE_STOCKS)}개 심볼 처리")
         
         # 🔍 중복 저장 원인 분석:
         # 1. API 엔드포인트 중복 호출 - /api/stocks/quote에서 이미 DB 저장
@@ -122,30 +122,30 @@ class StockAutoCollector:
                 
                 if isinstance(result, Exception):
                     round_errors += 1
-                    logger.error(f"❌ {symbol} 수집 실패: {result}")
+                    logger.error(f" {symbol} 수집 실패: {result}")
                 elif result:
                     round_success += 1
-                    logger.debug(f"✅ {symbol} 수집 성공")
+                    logger.debug(f" {symbol} 수집 성공")
                 else:
                     round_errors += 1
-                    logger.error(f"❌ {symbol} 수집 실패: 알 수 없는 오류")
+                    logger.error(f" {symbol} 수집 실패: 알 수 없는 오류")
             
             self.success_count += round_success
             self.error_count += round_errors
             
-            logger.info(f"📈 이번 라운드: {round_success}/{len(MOST_ACTIVE_STOCKS)} 성공")
+            logger.info(f" 이번 라운드: {round_success}/{len(MOST_ACTIVE_STOCKS)} 성공")
     
     async def _collect_single_stock(self, session: aiohttp.ClientSession, symbol: str) -> bool:
         """단일 주식 데이터 수집 - save_to_db=false로 중복 방지"""
         try:
-            # 🎯 save_to_db=false 파라미터 추가로 중복 저장 방지
+            #  save_to_db=false 파라미터 추가로 중복 저장 방지
             url = f"{self.base_url}?symbol={symbol}&save_to_db=false"
             
             async with session.get(url) as response:
                 if response.status == 200:
                     data = await response.json()
                     
-                    # 🔄 여기서 직접 DB 저장 (한 번만)
+                    #  여기서 직접 DB 저장 (한 번만)
                     quote_data = {
                         "symbol": symbol,
                         "c": float(data.get('c', 0)),
@@ -158,17 +158,17 @@ class StockAutoCollector:
                     }
                     
                     if quote_service.save_stock_quote(quote_data):
-                        logger.debug(f"💾 {symbol} 자동수집 저장 완료")
+                        logger.debug(f" {symbol} 자동수집 저장 완료")
                         return True
                     else:
-                        logger.error(f"❌ {symbol} 자동수집 저장 실패")
+                        logger.error(f" {symbol} 자동수집 저장 실패")
                         return False
                 else:
-                    logger.error(f"❌ {symbol} API 호출 실패: {response.status}")
+                    logger.error(f" {symbol} API 호출 실패: {response.status}")
                     return False
                     
         except Exception as e:
-            logger.error(f"❌ {symbol} 수집 중 오류: {e}")
+            logger.error(f" {symbol} 수집 중 오류: {e}")
             return False
     
     def get_status(self) -> Dict[str, Any]:
