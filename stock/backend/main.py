@@ -46,21 +46,21 @@ app.include_router(chat.rest_router)
 @app.on_event("startup")
 async def startup_event():
     """애플리케이션 시작 시 실행"""
-    logger.info("🚀 통합 Stock & Auth API 시작...")
+    logger.info(" 통합 Stock & Auth API 시작...")
     
     # 데이터베이스 초기화 (실패해도 계속 진행)
     db_success = create_db_and_tables_safe()
     if db_success:
-        logger.info("✅ 데이터베이스 초기화 완료")
+        logger.info(" 데이터베이스 초기화 완료")
     else:
-        logger.warning("⚠️ 데이터베이스 초기화 실패 - 캐시 모드로 동작")
+        logger.warning(" 데이터베이스 초기화 실패 - 캐시 모드로 동작")
     
     # WebSocket 매니저 초기화
     try:
         from stock.backend.websocket_manager import manager
         logger.info("🔗 WebSocket 매니저 초기화 완료")
     except Exception as e:
-        logger.warning(f"⚠️ WebSocket 매니저 초기화 실패: {e}")
+        logger.warning(f" WebSocket 매니저 초기화 실패: {e}")
     
     # 잠시 대기 후 자동 수집기들 시작
     import asyncio
@@ -72,36 +72,36 @@ async def startup_event():
         start_crypto_collection()
         logger.info("₿ 암호화폐 데이터 자동 수집기 시작")
     except Exception as e:
-        logger.error(f"❌ 암호화폐 수집기 시작 실패: {e}")
+        logger.error(f" 암호화폐 수집기 시작 실패: {e}")
     
     # 추가 대기 후 주식 자동 수집기 시작
     await asyncio.sleep(1)
     try:
         auto_collector.start_collector()
-        logger.info("🔄 주식 데이터 자동 수집기 시작")
+        logger.info(" 주식 데이터 자동 수집기 시작")
     except Exception as e:
-        logger.error(f"❌ 주식 수집기 시작 실패: {e}")
+        logger.error(f" 주식 수집기 시작 실패: {e}")
     
-    logger.info("🎉 모든 서비스 초기화 완료!")
+    logger.info(" 모든 서비스 초기화 완료!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """애플리케이션 종료 시 실행"""
-    logger.info("🛑 통합 API 종료...")
+    logger.info(" 통합 API 종료...")
     
     # 모든 자동 수집기 중지
     try:
         auto_collector.stop_collector()
-        logger.info("⏹️ 주식 데이터 자동 수집기 중지")
+        logger.info(" 주식 데이터 자동 수집기 중지")
     except Exception as e:
-        logger.error(f"❌ 주식 수집기 중지 실패: {e}")
+        logger.error(f" 주식 수집기 중지 실패: {e}")
     
     try:
         from stock.backend.services.stock_service import stop_crypto_collection
         stop_crypto_collection()
-        logger.info("⏹️ 암호화폐 데이터 자동 수집기 중지")
+        logger.info(" 암호화폐 데이터 자동 수집기 중지")
     except Exception as e:
-        logger.error(f"❌ 암호화폐 수집기 중지 실패: {e}")
+        logger.error(f" 암호화폐 수집기 중지 실패: {e}")
 
 @app.get("/")
 async def root():
