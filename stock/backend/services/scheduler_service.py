@@ -36,8 +36,8 @@ class StockDataScheduler:
         self.scheduler_thread = threading.Thread(target=self._run_scheduler, daemon=True)
         self.scheduler_thread.start()
         
-        logger.info(f"🚀 주식 데이터 스케줄러 시작 - {len(MOST_ACTIVE_STOCKS)}개 심볼 모니터링")
-        logger.info(f"📋 모니터링 심볼: {', '.join(MOST_ACTIVE_STOCKS[:10])}... (총 {len(MOST_ACTIVE_STOCKS)}개)")
+        logger.info(f" 주식 데이터 스케줄러 시작 - {len(MOST_ACTIVE_STOCKS)}개 심볼 모니터링")
+        logger.info(f" 모니터링 심볼: {', '.join(MOST_ACTIVE_STOCKS[:10])}... (총 {len(MOST_ACTIVE_STOCKS)}개)")
     
     def stop_scheduler(self):
         """스케줄러 중지"""
@@ -45,7 +45,7 @@ class StockDataScheduler:
         if self.scheduler_thread and self.scheduler_thread.is_alive():
             self.scheduler_thread.join(timeout=5)
         
-        logger.info(f"⏹️ 주식 데이터 스케줄러 중지됨 (처리: {self.processed_count}, 오류: {self.error_count})")
+        logger.info(f" 주식 데이터 스케줄러 중지됨 (처리: {self.processed_count}, 오류: {self.error_count})")
     
     def _run_scheduler(self):
         """스케줄러 메인 루프"""
@@ -56,7 +56,7 @@ class StockDataScheduler:
                 start_time = time.time()
                 success_count = 0
                 
-                logger.info(f"📊 데이터 수집 시작 - {len(MOST_ACTIVE_STOCKS)}개 심볼 처리")
+                logger.info(f" 데이터 수집 시작 - {len(MOST_ACTIVE_STOCKS)}개 심볼 처리")
                 
                 for i, symbol in enumerate(MOST_ACTIVE_STOCKS):
                     if not self.is_running:  # 중지 신호 확인
@@ -102,23 +102,23 @@ class StockDataScheduler:
                 self.processed_count += success_count
                 
                 logger.info(
-                    f"📈 수집 완료: {success_count}/{len(MOST_ACTIVE_STOCKS)} 성공 "
+                    f" 수집 완료: {success_count}/{len(MOST_ACTIVE_STOCKS)} 성공 "
                     f"(소요시간: {elapsed_time:.1f}초, 누적: {self.processed_count}개)"
                 )
                 
                 # 다음 실행까지 대기 (1분 - 처리 시간)
                 remaining_time = 60 - elapsed_time
                 if remaining_time > 0:
-                    logger.info(f"⏱️ 다음 수집까지 {remaining_time:.1f}초 대기...")
+                    logger.info(f" 다음 수집까지 {remaining_time:.1f}초 대기...")
                     time.sleep(remaining_time)
                 else:
-                    logger.warning(f"⚠️ 처리 시간이 1분을 초과했습니다 ({elapsed_time:.1f}초)")
+                    logger.warning(f" 처리 시간이 1분을 초과했습니다 ({elapsed_time:.1f}초)")
                 
             except Exception as e:
-                logger.error(f"❌ 스케줄러 루프 오류: {e}")
+                logger.error(f" 스케줄러 루프 오류: {e}")
                 time.sleep(10)  # 오류 시 10초 대기 후 재시도
         
-        logger.info("🛑 스케줄러 루프 종료")
+        logger.info(" 스케줄러 루프 종료")
     
     def get_status(self):
         """스케줄러 상태 반환"""

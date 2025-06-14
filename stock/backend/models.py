@@ -55,28 +55,4 @@ class CryptoQuote(Base):
         Index("idx_crypto_t", "t"),                                  # 타임스탬프 인덱스 추가
     )
 
-# 📈 주요 특징:
-# 1. Primary Key: id (자동 증가)
-# 2. Stock Symbol: symbol (AAPL, MSFT 등 최대 20자)
-# 3. Price Data: Finnhub API 표준 필드들
-#    - c: Current price (현재가)
-#    - d: Change (변동폭)  
-#    - dp: Percent change (변동률 %)
-#    - h: High price (고가)
-#    - l: Low price (저가)
-#    - o: Open price (시가)
-#    - pc: Previous close (전일 종가)
-# 4. Timestamps: 생성/수정 시간 자동 관리
-# 5. Indexes: 빠른 조회를 위한 인덱스 설정
 
-# 🔄 1분 자동 수집 시스템 설명:
-# 
-# 📊 수집 대상: 50개 주요 주식 (MOST_ACTIVE_STOCKS)
-# ⏰ 수집 주기: 1분마다 반복 실행
-# 🎯 수집 방식: 자체 REST API 호출 → DB 저장
-# 🚀 처리 방식: 비동기 병렬 처리 (동시에 50개 요청)
-# 
-# 💾 저장 구조:
-# - 매분마다 50개 레코드 생성 (각 심볼당 1개)
-# - 시간순 정렬을 위한 created_at 자동 기록
-# - 중복 데이터도 허용 (시계열 데이터 특성상)
