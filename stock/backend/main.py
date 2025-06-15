@@ -34,13 +34,17 @@ app = FastAPI(
     description="주식 데이터 + 사용자 인증 통합 API"
 )
 
-# CORS 설정 추가
+# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=app_settings.allowed_origins,
+    allow_origins=[
+        "https://dajutalk.com",
+        "https://www.dajutalk.com",
+        "http://localhost:3000"  # 개발용
+    ],
     allow_credentials=True,
-    allow_methods=app_settings.allowed_methods,
-    allow_headers=app_settings.allowed_headers,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # 라우터 등록 순서 중요
