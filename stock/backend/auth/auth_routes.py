@@ -8,6 +8,7 @@ from stock.backend.auth.kakao_service import get_kakao_access_token, get_kakao_u
 from stock.backend.auth import models, schemas, crud
 import os
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,8 @@ router = APIRouter()
 
 # 환경변수
 KAKAO_CLIENT_ID = os.getenv("KAKAO_CLIENT_ID")
-REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI", "http://localhost:8000/auth/kakao/callback")
+REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI", "https://dajutalk.com/auth/kakao/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://dajutalk.com")
 
 @router.post("/signup", response_model=schemas.Token)
 def signup(
@@ -59,7 +61,7 @@ def signup(
             key="access_token",
             value=token,
             httponly=True,
-            secure=False,
+            secure=Ture,
             samesite="lax",
             max_age=86400
         )
@@ -78,7 +80,7 @@ def signup(
         logger.error("❌ 회원가입 중 서버 오류 발생:")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail="회원가입 중 서버 오류가 발생했습니다.")
-    
+
 @router.post("/login", response_model=schemas.Token)
 def login(
     response: Response,
@@ -88,18 +90,18 @@ def login(
 ):
     """일반 로그인 (회원가입 분리됨)"""
     user = crud.get_user_by_email(db, email)
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="등록되지 않은 이메일입니다")
-    
+
     # 비밀번호 확인
     if not user.password or not crud.verify_password(password, user.password):
         raise HTTPException(status_code=400, detail="잘못된 비밀번호입니다")
-    
+
     # 계정 활성화 확인
     if not user.is_active:
         raise HTTPException(status_code=400, detail="비활성화된 계정입니다")
-    
+
     logger.info(f"사용자 로그인: {email}")
 
     # JWT 토큰 생성
@@ -110,11 +112,11 @@ def login(
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,
+        secure=Ture,
         samesite="lax",
         max_age=86400
     )
-    
+
     return {"access_token": token, "token_type": "bearer", "user_id": user.id, "nickname": user.nickname}
 
 @router.post("/kakao/callback", response_model=schemas.Token)
@@ -148,7 +150,7 @@ def kakao_login(
                 password=None,
                 nickname=nickname,
                 provider="kakao"
-                
+
             )
             user = crud.create_user(db, new_user)
             logger.info(f"카카오 신규 사용자: {nickname}")
@@ -157,19 +159,19 @@ def kakao_login(
 
         # JWT 토큰 생성
         token = create_access_token(data={"sub": str(user.id)})
-        
+
         # 쿠키 설정
         response.set_cookie(
             key="access_token",
             value=token,
             httponly=True,
-            secure=False,
+            secure=Ture,
             samesite="lax",
             max_age=86400
         )
-        
+
         return {"access_token": token, "token_type": "bearer", "user_id": user.id, "nickname": user.nickname}
-        
+
     except Exception as e:
         logger.error(f"카카오 로그인 처리 오류: {e}")
         raise HTTPException(status_code=500, detail="카카오 로그인 처리 중 오류가 발생했습니다")
@@ -183,7 +185,7 @@ def kakao_login_callback(
     code = request.query_params.get("code")
     if not code:
         logger.warning("🔴 code 없음")
-        return RedirectResponse(url="http://localhost:3000?error=no_code")
+        return RedirectResponse(url=f"{FRONTEND_URL}/login?error=no_code")
 
     try:
         logger.info("🔵 code 수신 완료, 토큰 요청 시작")
@@ -214,29 +216,31 @@ def kakao_login_callback(
             except Exception as e:
                 logger.error("❌ 사용자 생성 중 오류 발생")
                 logger.error(traceback.format_exc())
-                return RedirectResponse(url="http://localhost:3000?error=creation_failed")
+                return RedirectResponse(url=f"{FRONTEND_URL}/login?error=creation_failed")
 
         # JWT 토큰 생성
         token = create_access_token(data={"sub": str(user.id)})
         logger.info(f"✅ JWT 생성 완료")
 
         # 프론트엔드로 리다이렉트
-        response = RedirectResponse(url="http://localhost:3000?login=success")
+        success_url = f"{FRONTEND_URL}/login-success?token={token}"
+        response = RedirectResponse(url=success_url)
         response.set_cookie(
             key="access_token",
             value=token,
             httponly=True,
-            secure=False,
+            secure=Ture,
             samesite="lax",
             max_age=86400
         )
-        
+
         return response
 
     except Exception as e:
         logger.error(f"❌ 카카오 콜백 처리 오류: {e}")
         logger.error(traceback.format_exc())
-        return RedirectResponse(url="http://localhost:3000?error=kakao_failed")
+        error_url = f"{FRONTEND_URL}/login?error=kakao_failed"
+        return RedirectResponse(url=error_url)
 
 @router.get("/me", response_model=schemas.User)
 def read_me(current_user=Depends(get_current_user)):
@@ -254,7 +258,7 @@ def redirect_to_kakao():
     """카카오 로그인 리다이렉트"""
     if not KAKAO_CLIENT_ID:
         raise HTTPException(status_code=500, detail="카카오 클라이언트 ID가 설정되지 않았습니다")
-    
+
     kakao_auth_url = (
         f"https://kauth.kakao.com/oauth/authorize"
         f"?response_type=code"
@@ -282,7 +286,7 @@ async def check_email_availability(
     try:
         existing_user = crud.get_user_by_email(db, email)
         available = existing_user is None
-        
+
         return {
             "email": email,
             "available": available,
@@ -302,7 +306,7 @@ async def check_nickname_availability(
     try:
         existing_user = crud.get_user_by_nickname(db, nickname)
         available = existing_user is None
-        
+
         return {
             "nickname": nickname,
             "available": available,
