@@ -61,7 +61,7 @@ def signup(
             key="access_token",
             value=token,
             httponly=True,
-            secure=Ture,
+            secure=True,
             samesite="lax",
             max_age=86400
         )
@@ -112,7 +112,7 @@ def login(
         key="access_token",
         value=token,
         httponly=True,
-        secure=Ture,
+        secure=True,
         samesite="lax",
         max_age=86400
     )
@@ -165,7 +165,7 @@ def kakao_login(
             key="access_token",
             value=token,
             httponly=True,
-            secure=Ture,
+            secure=True,
             samesite="lax",
             max_age=86400
         )
@@ -223,13 +223,13 @@ def kakao_login_callback(
         logger.info(f"✅ JWT 생성 완료")
 
         # 프론트엔드로 리다이렉트
-        success_url = f"{FRONTEND_URL}/login-success"
+        success_url = f"{FRONTEND_URL}?login=success"
         response = RedirectResponse(url=success_url)
         response.set_cookie(
             key="access_token",
             value=token,
             httponly=True,
-            secure=Ture,
+            secure=True,
             samesite="lax",
             max_age=86400
         )
